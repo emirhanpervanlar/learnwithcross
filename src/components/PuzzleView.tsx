@@ -1,5 +1,5 @@
 import { useEffect, useRef } from 'react'
-import type { KeyboardEvent } from 'react'
+import type { ChangeEvent, KeyboardEvent } from 'react'
 import type { Difficulty, Direction, Puzzle, PuzzleClue, PuzzleCell } from '../types'
 import { getWordSetById } from '../data/sets'
 import {
@@ -15,7 +15,6 @@ interface Props {
   session: SessionSnapshot | null
   onSessionChange: (snapshot: SessionSnapshot) => void
   onFinished: () => void
-  onRegenerate: () => void
   onBack: () => void
   learning: SolverCallbacks
 }
@@ -36,7 +35,6 @@ export function PuzzleView({
   session,
   onSessionChange,
   onFinished,
-  onRegenerate,
   onBack,
   learning,
 }: Props) {
@@ -45,6 +43,7 @@ export function PuzzleView({
     : undefined
   const solver = usePuzzleSolver(puzzle, learning, initialState)
   const containerRef = useRef<HTMLDivElement>(null)
+  const inputRef = useRef<HTMLInputElement>(null)
 
   const set = getWordSetById(puzzle.setSlug)
   const activeWordId = solver.currentWord()?.id
@@ -84,6 +83,8 @@ export function PuzzleView({
   }, [solver.entries, solver.active, solver.hintsUsed, solver.checkMode, allDone])
 
   const onKeyDown = (e: KeyboardEvent) => {
+    // The hidden input handles its own keys (mobile + after a cell tap)
+    if (e.target === inputRef.current) return
     const k = e.key
     if (/^[a-zA-Z]$/.test(k)) {
       solver.inputLetter(k.toLowerCase())
@@ -112,10 +113,55 @@ export function PuzzleView({
     }
   }
 
+  const onInputKeyDown = (e: KeyboardEvent<HTMLInputElement>) => {
+    const k = e.key
+    if (k === 'Process' || k === 'Unidentified') return
+    if (/^[a-zA-Z]$/.test(k)) {
+      e.preventDefault()
+      e.stopPropagation()
+      solver.inputLetter(k.toLowerCase())
+    } else if (k === 'Backspace' || k === 'Delete') {
+      e.preventDefault()
+      e.stopPropagation()
+      solver.erase()
+    } else if (k === 'ArrowUp') {
+      e.preventDefault()
+      e.stopPropagation()
+      solver.move(-1, 0)
+    } else if (k === 'ArrowDown') {
+      e.preventDefault()
+      e.stopPropagation()
+      solver.move(1, 0)
+    } else if (k === 'ArrowLeft') {
+      e.preventDefault()
+      e.stopPropagation()
+      solver.move(0, -1)
+    } else if (k === 'ArrowRight') {
+      e.preventDefault()
+      e.stopPropagation()
+      solver.move(0, 1)
+    } else if (k === ' ' || k === 'Enter') {
+      e.preventDefault()
+      e.stopPropagation()
+      solver.toggleDir()
+    }
+  }
+
+  // Fallback for IME / virtual keyboards that skip keydown events
+  const onInputChange = (e: ChangeEvent<HTMLInputElement>) => {
+    const v = e.target.value
+    if (!v) return
+    const ch = v[v.length - 1]
+    if (/^[a-zA-Z]$/.test(ch)) {
+      solver.inputLetter(ch.toLowerCase())
+    }
+    e.target.value = ''
+  }
+
   const renderCell = (row: number, col: number, cell: PuzzleCell | undefined) => {
     const key = `${row},${col}`
     if (!cell) {
-      return <div key={key} className="h-10 w-10 bg-slate-200" />
+      return <div key={key} className="h-full w-full bg-slate-200" />
     }
 
     const inActiveWord =
@@ -142,8 +188,11 @@ export function PuzzleView({
       <button
         key={key}
         type="button"
-        onClick={() => solver.select(row, col)}
-        className={`relative h-10 w-10 ${bg} ${ring} ${textColor} transition-colors focus:outline-none`}
+        onClick={() => {
+          solver.select(row, col)
+          inputRef.current?.focus()
+        }}
+        className={`relative z-10 flex h-full w-full items-center justify-center ${bg} ${ring} ${textColor} transition-colors focus:outline-none`}
         aria-label={`${row + 1}. satır, ${col + 1}. sütun`}
       >
         {cell.number != null && (
@@ -153,9 +202,10 @@ export function PuzzleView({
         )}
         {entered && (
           <span
-            className={`flex h-full w-full items-center justify-center text-lg uppercase ${
+            className={`uppercase ${
               cell.given ? 'font-extrabold' : 'font-semibold'
             }`}
+            style={{ fontSize: `clamp(0.75rem, calc(100vw / ${puzzle.width} * 0.5), 1.125rem)` }}
           >
             {entered}
           </span>
@@ -166,12 +216,13 @@ export function PuzzleView({
 
   const hintConfig = DIFFICULTY_CONFIG[puzzle.difficulty]
 
+  const cellSize = `clamp(1.4rem, calc((100vw - 56px) / ${puzzle.width}), 2.5rem)`
+
   return (
     <div
       ref={containerRef}
       tabIndex={0}
       onKeyDown={onKeyDown}
-      onClick={() => containerRef.current?.focus()}
       className="rounded-lg outline-none"
     >
       <div className="flex flex-wrap items-center justify-between gap-3">
@@ -216,12 +267,6 @@ export function PuzzleView({
           >
             Temizle
           </button>
-          <button
-            onClick={onRegenerate}
-            className="rounded-lg bg-indigo-600 px-3 py-1.5 text-sm font-semibold text-white transition hover:bg-indigo-700"
-          >
-            Yeniden Üret
-          </button>
         </div>
       </div>
 
@@ -246,15 +291,38 @@ export function PuzzleView({
       )}
 
       <div className="mt-5 flex flex-col gap-6 lg:flex-row lg:items-start">
-        <div
-          className="mx-auto grid gap-px overflow-hidden rounded-lg border border-slate-300 bg-slate-300 lg:mx-0"
-          style={{ gridTemplateColumns: `repeat(${puzzle.width}, 2.5rem)` }}
-        >
-          {Array.from({ length: puzzle.height * puzzle.width }, (_, idx) => {
-            const row = Math.floor(idx / puzzle.width)
-            const col = idx % puzzle.width
-            return renderCell(row, col, solver.cellMap.get(`${row},${col}`))
-          })}
+        <div className="w-full max-w-full overflow-x-auto">
+          <div className="relative mx-auto w-fit">
+            <div
+              className="relative z-10 grid gap-px overflow-hidden rounded-lg border border-slate-300 bg-slate-300"
+              style={{
+                gridTemplateColumns: `repeat(${puzzle.width}, ${cellSize})`,
+                gridTemplateRows: `repeat(${puzzle.height}, ${cellSize})`,
+              }}
+            >
+              {Array.from({ length: puzzle.height * puzzle.width }, (_, idx) => {
+                const row = Math.floor(idx / puzzle.width)
+                const col = idx % puzzle.width
+                return renderCell(row, col, solver.cellMap.get(`${row},${col}`))
+              })}
+            </div>
+            <input
+              ref={inputRef}
+              type="text"
+              inputMode="text"
+              aria-label="Bulmaca girişi"
+              autoCapitalize="off"
+              autoCorrect="off"
+              autoComplete="off"
+              spellCheck={false}
+              onChange={onInputChange}
+              onKeyDown={onInputKeyDown}
+              className="absolute inset-0 z-0 h-full w-full cursor-text opacity-0"
+            />
+          </div>
+          <p className="mt-2 text-center text-xs text-slate-400">
+            Hücreye dokunup klavyeden yaz ya da geri sil.
+          </p>
         </div>
 
         <div className="grid flex-1 gap-6 sm:grid-cols-2 lg:grid-cols-1">

@@ -37,11 +37,6 @@ export default function App() {
   const [selectedSet, setSelectedSet] = useState<WordSet | null>(null)
   const [puzzle, setPuzzle] = useState<Puzzle | null>(null)
   const [session, setSession] = useState<SessionSnapshot | null>(null)
-  const [lastOptions, setLastOptions] = useState<GenerateOptions>({
-    wordCount: 12,
-    minLength: 3,
-    difficulty: 'normal',
-  })
   const [learning, setLearning] = useState<LearningMap>(() => loadLearning())
 
   // resume the last unfinished puzzle on first load
@@ -88,16 +83,11 @@ export default function App() {
       seed: Date.now(),
       difficulty: options.difficulty,
     })
-    setLastOptions(options)
     setSelectedSet(set)
     setPuzzle(newPuzzle)
     setSession(EMPTY_SNAPSHOT)
     setView('puzzle')
     saveSavedSession({ puzzle: newPuzzle, snapshot: EMPTY_SNAPSHOT, savedAt: Date.now() })
-  }
-
-  const handleRegenerate = () => {
-    if (selectedSet) generate(selectedSet, lastOptions)
   }
 
   const handleSessionChange = (snap: SessionSnapshot) => {
@@ -172,7 +162,6 @@ export default function App() {
             session={session}
             onSessionChange={handleSessionChange}
             onFinished={handleFinished}
-            onRegenerate={handleRegenerate}
             onBack={openCatalog}
             learning={learningCallbacks}
           />

@@ -11,11 +11,8 @@ export interface ActiveCell {
 export type EntryMap = Record<string, string>
 
 export interface SolverCallbacks {
-  /** called whenever a letter is typed into a non-given cell */
   onWordWorked?: (word: PlacedWord) => void
-  /** called when a cell transitions to the correct letter (not via hint) */
   onNewCorrectLetter?: (word: PlacedWord) => void
-  /** called when a word first becomes fully solved */
   onWordComplete?: (word: PlacedWord) => void
 }
 
@@ -129,11 +126,39 @@ export function usePuzzleSolver(
     })
   }
 
-  const advanceInWord = (word: PlacedWord, k: string) => {
+  const isLocked = (k: string): boolean => {
+    if (revealed.current.has(k)) return true
+    const cell = cellMap.get(k)
+    if (!cell) return false
+    if (cell.given) return true
+    if (cell.acrossId && completed.has(cell.acrossId)) return true
+    if (cell.downId && completed.has(cell.downId)) return true
+    return false
+  }
+
+  const advanceToNextNonLocked = (word: PlacedWord, fromKey: string) => {
     const cells = cellsOfWord.get(word.id)!
-    const idx = cells.findIndex(c => c.key === k)
-    const next = cells[idx + 1]
-    if (next) setActive({ row: next.row, col: next.col, dir: word.dir })
+    const idx = cells.findIndex(c => c.key === fromKey)
+    for (let i = idx + 1; i < cells.length; i++) {
+      if (!isLocked(cells[i].key)) {
+        setActive({ row: cells[i].row, col: cells[i].col, dir: word.dir })
+        return
+      }
+    }
+  }
+
+  const moveBackToPrevNonLocked = () => {
+    if (!active) return
+    const word = currentWord()
+    if (!word) return
+    const cells = cellsOfWord.get(word.id)!
+    const idx = cells.findIndex(c => c.key === `${active.row},${active.col}`)
+    for (let i = idx - 1; i >= 0; i--) {
+      if (!isLocked(cells[i].key)) {
+        setActive({ row: cells[i].row, col: cells[i].col, dir: word.dir })
+        return
+      }
+    }
   }
 
   const inputLetter = (ch: string) => {
@@ -141,47 +166,35 @@ export function usePuzzleSolver(
     const word = currentWord()
     if (!word) return
     const k = `${active.row},${active.col}`
-    const cell = cellMap.get(k)
 
-    // pre-filled letters are locked: skip straight to the next cell
-    if (cell?.given) {
-      advanceInWord(word, k)
+    if (isLocked(k)) {
+      advanceToNextNonLocked(word, k)
       return
     }
 
-    const correct = cell?.letter
+    const correct = cellMap.get(k)?.letter
     const wasCorrect = correct != null && entries[k] === correct
     setEntries(prev => ({ ...prev, [k]: ch }))
     callbacksRef.current?.onWordWorked?.(word)
     if (!wasCorrect && correct === ch && !revealed.current.has(k)) {
       callbacksRef.current?.onNewCorrectLetter?.(word)
     }
-    advanceInWord(word, k)
-  }
-
-  const moveBackInWord = () => {
-    if (!active) return
-    const word = currentWord()
-    if (!word) return
-    const cells = cellsOfWord.get(word.id)!
-    const idx = cells.findIndex(c => c.key === `${active.row},${active.col}`)
-    const prev = cells[idx - 1]
-    if (prev) setActive({ row: prev.row, col: prev.col, dir: word.dir })
+    advanceToNextNonLocked(word, k)
   }
 
   const erase = () => {
     if (!active) return
     const k = `${active.row},${active.col}`
-    const cell = cellMap.get(k)
-    if (cell?.given) {
-      moveBackInWord()
+
+    if (isLocked(k)) {
+      moveBackToPrevNonLocked()
       return
     }
     if (entries[k]) {
       putCell(k)
       return
     }
-    moveBackInWord()
+    moveBackToPrevNonLocked()
   }
 
   const move = (dr: number, dc: number) => {
@@ -213,7 +226,24 @@ export function usePuzzleSolver(
     setActive({ row: word.row, col: word.col, dir: word.dir })
   }
 
-  const clearAll = () => setEntries({})
+  const clearAll = () => {
+    setEntries(prev => {
+      const curCompleted = new Set<string>()
+      for (const [id, cells] of cellsOfWord) {
+        if (cells.every(c => prev[c.key] === c.letter)) curCompleted.add(id)
+      }
+      const next = { ...prev }
+      for (const k of Object.keys(next)) {
+        if (revealed.current.has(k)) continue
+        const cell = cellMap.get(k)
+        if (cell?.given) continue
+        if (cell?.acrossId && curCompleted.has(cell.acrossId)) continue
+        if (cell?.downId && curCompleted.has(cell.downId)) continue
+        delete next[k]
+      }
+      return next
+    })
+  }
 
   const toggleCheck = () => setCheckMode(v => !v)
 
@@ -231,9 +261,9 @@ export function usePuzzleSolver(
   const hintActionWord = currentWord()
   const hintAvailable = (() => {
     if (hintLimit === 0 || hintsLeft <= 0 || !hintActionWord) return false
-    const cells = cellsOfWord.get(hintActionWord.id)!
     if (cfg.hintRule80 && filledFraction(hintActionWord.id) >= 0.8) return false
-    return cells.some(c => entries[c.key] !== c.letter && !cellMap.get(c.key)?.given)
+    const cells = cellsOfWord.get(hintActionWord.id)!
+    return cells.some(c => !isLocked(c.key) && entries[c.key] !== c.letter)
   })()
 
   const hint = () => {
@@ -241,9 +271,7 @@ export function usePuzzleSolver(
     const word = hintActionWord
     if (!word) return
     const cells = cellsOfWord.get(word.id)!
-    const target = cells.find(
-      c => entries[c.key] !== c.letter && !cellMap.get(c.key)?.given,
-    )
+    const target = cells.find(c => !isLocked(c.key) && entries[c.key] !== c.letter)
     if (!target) return
     setEntries(prev => ({ ...prev, [target.key]: target.letter }))
     revealed.current.add(target.key)
