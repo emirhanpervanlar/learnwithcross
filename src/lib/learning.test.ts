@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import type { PlacedWord } from '../types'
+import type { LearningMap, PlacedWord } from '../types'
 import { levelFor, recordCompleted, recordCorrect, recordWorked } from './learning'
 
 const word: PlacedWord = {
@@ -35,7 +35,7 @@ describe('levelFor', () => {
 
 describe('learning records', () => {
   it('accumulates worked points per word', () => {
-    let map = {}
+    let map: LearningMap = {}
     map = recordWorked(map, word, 's1', 'Oxford')
     map = recordWorked(map, word, 's1', 'Oxford')
     map = recordWorked(map, other, 's1', 'Oxford')
@@ -45,7 +45,7 @@ describe('learning records', () => {
   })
 
   it('tracks correctness and completion bonuses', () => {
-    let map = {}
+    let map: LearningMap = {}
     map = recordWorked(map, word, 's1', 'Oxford')
     map = recordCorrect(map, word, 's1', 'Oxford')
     map = recordCompleted(map, word, 's1', 'Oxford')
@@ -55,7 +55,7 @@ describe('learning records', () => {
   })
 
   it('keeps different sets apart even with colliding word ids', () => {
-    let map = {}
+    let map: LearningMap = {}
     map = recordWorked(map, word, 's1', 'Oxford')
     map = recordWorked(map, word, 's2', 'Cambridge')
     expect(Object.keys(map).length).toBe(2)

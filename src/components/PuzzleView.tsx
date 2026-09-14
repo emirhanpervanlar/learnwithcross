@@ -81,7 +81,6 @@ export function PuzzleView({
       hintsUsed: solver.hintsUsed,
       checkMode: solver.checkMode,
     })
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [solver.entries, solver.active, solver.hintsUsed, solver.checkMode, allDone])
 
   const onKeyDown = (e: KeyboardEvent) => {
