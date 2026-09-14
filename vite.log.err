@@ -1,0 +1,23 @@
+Transform failed with 1 error:
+C:/Users/EmirhanPervanlar/Documents/Default Project/src/hooks/usePuzzleSolver.ts:171:1: ERROR: Unexpected end of file
+[2m22:13:28[22m [31m[1m[vite][22m[39m [31mInternal server error: Transform failed with 1 error:
+C:/Users/EmirhanPervanlar/Documents/Default Project/src/hooks/usePuzzleSolver.ts:171:1: ERROR: Unexpected end of file[39m
+  Plugin: [35mvite:esbuild[39m
+  File: [36mC:/Users/EmirhanPervanlar/Documents/Default Project/src/hooks/usePuzzleSolver.ts[39m:171:1
+[33m  
+  [33mUnexpected end of file[33m
+  169|      toggleCheck,
+  170|    }
+  171|  }
+     |   ^
+  [39m
+      at failureErrorWithLog (C:\Users\EmirhanPervanlar\Documents\Default Project\node_modules\esbuild\lib\main.js:1649:15)
+      at C:\Users\EmirhanPervanlar\Documents\Default Project\node_modules\esbuild\lib\main.js:847:29
+      at responseCallbacks.<computed> (C:\Users\EmirhanPervanlar\Documents\Default Project\node_modules\esbuild\lib\main.js:703:9)
+      at handleIncomingPacket (C:\Users\EmirhanPervanlar\Documents\Default Project\node_modules\esbuild\lib\main.js:762:9)
+      at Socket.readFromStdout (C:\Users\EmirhanPervanlar\Documents\Default Project\node_modules\esbuild\lib\main.js:679:7)
+      at Socket.emit (node:events:390:28)
+      at addChunk (node:internal/streams/readable:315:12)
+      at readableAddChunk (node:internal/streams/readable:289:9)
+      at Socket.Readable.push (node:internal/streams/readable:228:10)
+      at Pipe.onStreamRead (node:internal/stream_base_commons:199:23)
