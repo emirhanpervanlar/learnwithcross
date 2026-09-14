@@ -1,6 +1,7 @@
 import { useMemo, useState } from 'react'
 import type { Difficulty, WordSet } from '../types'
 import { DIFFICULTY_DESCRIPTION, DIFFICULTY_LABEL, DIFFICULTY_ORDER } from '../lib/difficulty'
+import { WORD_GROUP_LABELS } from '../data/sets'
 
 interface Props {
   set: WordSet
@@ -32,7 +33,12 @@ export function SetDetail({ set, onBack, onGenerate }: Props) {
       </button>
 
       <div className="rounded-xl border border-slate-200 bg-white p-6 shadow-sm">
-        <h2 className="text-xl font-bold text-slate-900">{set.name}</h2>
+        <div className="flex flex-wrap items-center justify-between gap-2">
+          <h2 className="text-xl font-bold text-slate-900">{set.name}</h2>
+          <span className="inline-flex items-center rounded-full bg-slate-100 px-2.5 py-0.5 text-xs font-medium text-slate-600">
+            {WORD_GROUP_LABELS[set.group] ?? set.group}
+          </span>
+        </div>
         <p className="mt-1 text-sm text-slate-500">{set.description}</p>
         <p className="mt-2 text-sm text-slate-400">
           {set.words.length} kelime{set.level ? ` · ${set.level}` : ''}

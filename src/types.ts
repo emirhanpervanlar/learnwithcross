@@ -1,4 +1,4 @@
-export type WordSetSource = 'oxford' | 'cambridge' | 'custom'
+export type WordSetSource = 'oxford' | 'cambridge' | 'custom' | 'topic'
 
 export type Difficulty = 'kolay' | 'normal' | 'zor'
 
@@ -18,8 +18,10 @@ export interface Word {
 export interface WordSet {
   id: string
   name: string
+  /** logical category used to group sets in the catalog, e.g. "digital" */
+  group: string
   source: WordSetSource
-  /** optional target level, e.g. "A1-B2" */
+  /** optional target level, e.g. "A1-A2" */
   level?: string
   description: string
   words: Word[]

@@ -1,4 +1,4 @@
-import { useEffect, useRef } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import type { ChangeEvent, KeyboardEvent } from 'react'
 import type { Difficulty, Direction, Puzzle, PuzzleClue, PuzzleCell } from '../types'
 import { getWordSetById } from '../data/sets'
@@ -24,6 +24,11 @@ const DIR_LABEL: Record<Direction, string> = {
   down: 'Dikey (Down)',
 }
 
+const DIR_SHORT: Record<Direction, string> = {
+  across: 'Yatay',
+  down: 'Dikey',
+}
+
 const DIFFICULTY_BADGE: Record<Difficulty, string> = {
   kolay: 'bg-green-50 text-green-700',
   normal: 'bg-amber-50 text-amber-700',
@@ -44,6 +49,11 @@ export function PuzzleView({
   const solver = usePuzzleSolver(puzzle, learning, initialState)
   const containerRef = useRef<HTMLDivElement>(null)
   const inputRef = useRef<HTMLInputElement>(null)
+  const gridRef = useRef<HTMLDivElement>(null)
+
+  const [isMobile, setIsMobile] = useState(false)
+  const [stickyOn, setStickyOn] = useState(false)
+  const [barBottom, setBarBottom] = useState(0)
 
   const set = getWordSetById(puzzle.setSlug)
   const activeWordId = solver.currentWord()?.id
@@ -53,6 +63,7 @@ export function PuzzleView({
 
   const acrossClues = puzzle.clues.filter(c => c.dir === 'across')
   const downClues = puzzle.clues.filter(c => c.dir === 'down')
+  const activeClue = activeWordId ? puzzle.clues.find(c => c.wordId === activeWordId) : undefined
 
   useEffect(() => {
     containerRef.current?.focus()
@@ -81,6 +92,36 @@ export function PuzzleView({
       checkMode: solver.checkMode,
     })
   }, [solver.entries, solver.active, solver.hintsUsed, solver.checkMode, allDone])
+
+  // only on mobile: a sticky bottom bar shows the selected clue,
+  // stays above the keyboard, and disables once the user scrolls away
+  useEffect(() => {
+    const mq = window.matchMedia('(max-width: 1023px)')
+    const apply = () => setIsMobile(mq.matches)
+    apply()
+    mq.addEventListener('change', apply)
+    return () => mq.removeEventListener('change', apply)
+  }, [])
+
+  useEffect(() => {
+    if (!isMobile) return
+    const GRID_GRACE = 40
+    const update = () => {
+      const el = gridRef.current
+      if (el) setStickyOn(el.getBoundingClientRect().top >= -GRID_GRACE)
+      const vv = window.visualViewport
+      if (vv) setBarBottom(Math.max(0, Math.round(window.innerHeight - (vv.offsetTop + vv.height))))
+    }
+    update()
+    window.addEventListener('scroll', update, { passive: true })
+    window.visualViewport?.addEventListener('scroll', update)
+    window.visualViewport?.addEventListener('resize', update)
+    return () => {
+      window.removeEventListener('scroll', update)
+      window.visualViewport?.removeEventListener('scroll', update)
+      window.visualViewport?.removeEventListener('resize', update)
+    }
+  }, [isMobile])
 
   const onKeyDown = (e: KeyboardEvent) => {
     // The hidden input handles its own keys (mobile + after a cell tap)
@@ -291,7 +332,7 @@ export function PuzzleView({
       )}
 
       <div className="mt-5 flex flex-col gap-6 lg:flex-row lg:items-start">
-        <div className="w-full max-w-full overflow-x-auto">
+        <div ref={gridRef} className="w-full max-w-full overflow-x-auto">
           <div className="relative mx-auto w-fit">
             <div
               className="relative z-10 grid gap-px overflow-hidden rounded-lg border border-slate-300 bg-slate-300"
@@ -346,6 +387,27 @@ export function PuzzleView({
           ))}
         </div>
       </div>
+
+      {isMobile && stickyOn && (
+        <>
+          <div
+            role="status"
+            aria-live="polite"
+            className="fixed inset-x-0 z-50 border-t border-slate-200 bg-white/95 px-4 py-2 shadow-[0_-4px_12px_rgba(0,0,0,0.08)] backdrop-blur lg:hidden"
+            style={{ bottom: barBottom }}
+          >
+            <div className="mx-auto flex max-w-6xl items-center gap-3">
+              <span className="shrink-0 rounded-md bg-indigo-600 px-2 py-0.5 text-xs font-bold uppercase tracking-wide text-white">
+                {activeClue ? `${activeClue.number} ${DIR_SHORT[activeClue.dir]}` : '—'}
+              </span>
+              <span className="flex-1 text-sm font-medium text-slate-800">
+                {activeClue ? activeClue.text : 'Bir hücre seç; ipucu burada görünür.'}
+              </span>
+            </div>
+          </div>
+          <div className="h-16 lg:hidden" aria-hidden="true" />
+        </>
+      )}
     </div>
   )
 }

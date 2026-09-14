@@ -155,6 +155,7 @@ describe('buildPuzzle', () => {
     const set: WordSet = {
       id: 's1',
       name: 'Mock',
+      group: 'core',
       source: 'custom',
       description: '',
       words: Array.from({ length: 40 }, (_, i) => ({ term: `word${i}`, definition: `def ${i}` })),
