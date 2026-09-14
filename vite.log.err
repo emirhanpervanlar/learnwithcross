@@ -21,3 +21,51 @@ C:/Users/EmirhanPervanlar/Documents/Default Project/src/hooks/usePuzzleSolver.ts
       at readableAddChunk (node:internal/streams/readable:289:9)
       at Socket.Readable.push (node:internal/streams/readable:228:10)
       at Pipe.onStreamRead (node:internal/stream_base_commons:199:23)
+Failed to parse JSON file, invalid JSON syntax found at line 425
+Failed to parse JSON file, invalid JSON syntax found at line 425
+Failed to parse JSON file, invalid JSON syntax found at line 404
+Failed to parse JSON file, invalid JSON syntax found at line 428
+Failed to parse JSON file, invalid JSON syntax found at line 404
+Failed to parse JSON file, invalid JSON syntax found at line 404
+Failed to parse JSON file, invalid JSON syntax found at line 425
+Failed to parse JSON file, invalid JSON syntax found at line 425
+Failed to parse JSON file, invalid JSON syntax found at line 425
+Failed to parse JSON file, invalid JSON syntax found at line 425
+Failed to parse JSON file, invalid JSON syntax found at line 428
+Failed to parse JSON file, invalid JSON syntax found at line 428
+[2m23:27:44[22m [31m[1m[vite][22m[39m [31mInternal server error: Failed to parse JSON file, invalid JSON syntax found at line 425[39m
+  Plugin: [35mvite:json[39m
+  File: [36mC:/Users/EmirhanPervanlar/Documents/Default Project/src/data/sets/oxford-3000.json[39m
+      at formatError (file:///C:/Users/EmirhanPervanlar/Documents/Default%20Project/node_modules/vite/dist/node/chunks/dep-827b23df.js:44066:46)
+      at TransformContext.error (file:///C:/Users/EmirhanPervanlar/Documents/Default%20Project/node_modules/vite/dist/node/chunks/dep-827b23df.js:44062:19)
+      at TransformContext.transform (file:///C:/Users/EmirhanPervanlar/Documents/Default%20Project/node_modules/vite/dist/node/chunks/dep-827b23df.js:40373:22)
+      at Object.transform (file:///C:/Users/EmirhanPervanlar/Documents/Default%20Project/node_modules/vite/dist/node/chunks/dep-827b23df.js:44356:62)
+      at async loadAndTransform (file:///C:/Users/EmirhanPervanlar/Documents/Default%20Project/node_modules/vite/dist/node/chunks/dep-827b23df.js:55088:29)
+      at async viteTransformMiddleware (file:///C:/Users/EmirhanPervanlar/Documents/Default%20Project/node_modules/vite/dist/node/chunks/dep-827b23df.js:64699:32)
+[2m23:27:45[22m [31m[1m[vite][22m[39m [31mInternal server error: Failed to parse JSON file, invalid JSON syntax found at line 425[39m
+  Plugin: [35mvite:json[39m
+  File: [36mC:/Users/EmirhanPervanlar/Documents/Default Project/src/data/sets/cambridge-3000.json[39m
+      at formatError (file:///C:/Users/EmirhanPervanlar/Documents/Default%20Project/node_modules/vite/dist/node/chunks/dep-827b23df.js:44066:46)
+      at TransformContext.error (file:///C:/Users/EmirhanPervanlar/Documents/Default%20Project/node_modules/vite/dist/node/chunks/dep-827b23df.js:44062:19)
+      at TransformContext.transform (file:///C:/Users/EmirhanPervanlar/Documents/Default%20Project/node_modules/vite/dist/node/chunks/dep-827b23df.js:40373:22)
+      at Object.transform (file:///C:/Users/EmirhanPervanlar/Documents/Default%20Project/node_modules/vite/dist/node/chunks/dep-827b23df.js:44356:62)
+      at async loadAndTransform (file:///C:/Users/EmirhanPervanlar/Documents/Default%20Project/node_modules/vite/dist/node/chunks/dep-827b23df.js:55088:29)
+      at async viteTransformMiddleware (file:///C:/Users/EmirhanPervanlar/Documents/Default%20Project/node_modules/vite/dist/node/chunks/dep-827b23df.js:64699:32)
+[2m23:27:45[22m [31m[1m[vite][22m[39m [31mInternal server error: Failed to parse JSON file, invalid JSON syntax found at line 428[39m
+  Plugin: [35mvite:json[39m
+  File: [36mC:/Users/EmirhanPervanlar/Documents/Default Project/src/data/sets/oxford-5000.json[39m
+      at formatError (file:///C:/Users/EmirhanPervanlar/Documents/Default%20Project/node_modules/vite/dist/node/chunks/dep-827b23df.js:44066:46)
+      at TransformContext.error (file:///C:/Users/EmirhanPervanlar/Documents/Default%20Project/node_modules/vite/dist/node/chunks/dep-827b23df.js:44062:19)
+      at TransformContext.transform (file:///C:/Users/EmirhanPervanlar/Documents/Default%20Project/node_modules/vite/dist/node/chunks/dep-827b23df.js:40373:22)
+      at Object.transform (file:///C:/Users/EmirhanPervanlar/Documents/Default%20Project/node_modules/vite/dist/node/chunks/dep-827b23df.js:44356:62)
+      at async loadAndTransform (file:///C:/Users/EmirhanPervanlar/Documents/Default%20Project/node_modules/vite/dist/node/chunks/dep-827b23df.js:55088:29)
+      at async viteTransformMiddleware (file:///C:/Users/EmirhanPervanlar/Documents/Default%20Project/node_modules/vite/dist/node/chunks/dep-827b23df.js:64699:32)
+[2m23:27:45[22m [31m[1m[vite][22m[39m [31mInternal server error: Failed to parse JSON file, invalid JSON syntax found at line 404[39m
+  Plugin: [35mvite:json[39m
+  File: [36mC:/Users/EmirhanPervanlar/Documents/Default Project/src/data/sets/phrasal-verbs.json[39m
+      at formatError (file:///C:/Users/EmirhanPervanlar/Documents/Default%20Project/node_modules/vite/dist/node/chunks/dep-827b23df.js:44066:46)
+      at TransformContext.error (file:///C:/Users/EmirhanPervanlar/Documents/Default%20Project/node_modules/vite/dist/node/chunks/dep-827b23df.js:44062:19)
+      at TransformContext.transform (file:///C:/Users/EmirhanPervanlar/Documents/Default%20Project/node_modules/vite/dist/node/chunks/dep-827b23df.js:40373:22)
+      at Object.transform (file:///C:/Users/EmirhanPervanlar/Documents/Default%20Project/node_modules/vite/dist/node/chunks/dep-827b23df.js:44356:62)
+      at async loadAndTransform (file:///C:/Users/EmirhanPervanlar/Documents/Default%20Project/node_modules/vite/dist/node/chunks/dep-827b23df.js:55088:29)
+      at async viteTransformMiddleware (file:///C:/Users/EmirhanPervanlar/Documents/Default%20Project/node_modules/vite/dist/node/chunks/dep-827b23df.js:64699:32)

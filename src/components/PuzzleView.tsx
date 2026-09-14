@@ -332,7 +332,10 @@ export function PuzzleView({
       )}
 
       <div className="mt-5 flex flex-col gap-6 lg:flex-row lg:items-start">
-        <div ref={gridRef} className="w-full max-w-full overflow-x-auto">
+        <div
+          ref={gridRef}
+          className="w-full max-w-full overflow-x-auto lg:w-auto lg:shrink-0 lg:max-w-[min(100%,620px)]"
+        >
           <div className="relative mx-auto w-fit">
             <div
               className="relative z-10 grid gap-px overflow-hidden rounded-lg border border-slate-300 bg-slate-300"
@@ -366,7 +369,7 @@ export function PuzzleView({
           </p>
         </div>
 
-        <div className="grid flex-1 gap-6 sm:grid-cols-2 lg:grid-cols-1">
+        <div className="grid min-w-0 flex-1 gap-6 sm:grid-cols-2 lg:grid-cols-1">
           {([['across', acrossClues], ['down', downClues]] as const).map(([dir, clues]) => (
             <div key={dir} className="rounded-xl border border-slate-200 bg-white p-4 shadow-sm">
               <h3 className="text-sm font-semibold uppercase tracking-wide text-slate-500">
