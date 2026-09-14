@@ -16,3 +16,23 @@ body {
   min-width: 320px;
   min-height: 100vh;
 }
+
+/* Slim, rounded scrollbars for word listings */
+.nice-scroll {
+  scrollbar-width: thin;
+  scrollbar-color: rgb(203 213 225) transparent;
+}
+.nice-scroll::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+.nice-scroll::-webkit-scrollbar-track {
+  background: transparent;
+}
+.nice-scroll::-webkit-scrollbar-thumb {
+  background: rgb(203 213 225);
+  border-radius: 9999px;
+}
+.nice-scroll::-webkit-scrollbar-thumb:hover {
+  background: rgb(148 163 184);
+}

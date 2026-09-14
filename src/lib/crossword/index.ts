@@ -3,7 +3,7 @@ import { generatePuzzle } from './generator'
 import { sampleWords } from './sample'
 
 export { generatePuzzle } from './generator'
-export { normalizeTerm } from './normalize'
+export { latinize, normalizeTerm } from './normalize'
 export { sampleWords } from './sample'
 export type { GenerateOptions, PuzzleWordInput } from './generator'
 

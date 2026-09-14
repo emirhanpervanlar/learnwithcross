@@ -99,7 +99,15 @@ const LEVELS: LevelThreshold[] = [
   { min: 15, name: 'İyi' },
   { min: 30, name: 'Çok İyi' },
   { min: 50, name: 'Usta' },
+  { min: 70, name: 'Uzman' },
+  { min: 95, name: 'Kurmay' },
+  { min: 125, name: 'Şampiyon' },
+  { min: 160, name: 'Efsane' },
+  { min: 200, name: 'Titanyum' },
 ]
+
+/** Highest mastery level number a word can reach. */
+export const MASTER_MAX_LEVEL = LEVELS.length
 
 export interface LearningLevel {
   /** 1-based level number */

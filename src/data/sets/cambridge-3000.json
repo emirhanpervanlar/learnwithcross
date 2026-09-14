@@ -5,7 +5,6 @@
   "level": "A1-B2",
   "description": "Cambridge English Vocabulary Profile (EVP) temelli A1-B2 seviyesi 3000 kelime.",
   "words": [
-    {"term":"a","definition":"used before countable or singular nouns referring to people or things that have not already been mentioned","pos":"indefinite article","example":"a man/horse/unit","level":"A1"},
     {"term":"about","definition":"a little more or less than; a little before or after","pos":"adverb","example":"It costs about $10.","level":"A1"},
     {"term":"above","definition":"at or to a higher place","pos":"adverb","example":"Put it on the shelf above.","level":"A1"},
     {"term":"address","definition":"details of where somebody lives or works and where letters, etc. can be sent","pos":"noun","example":"What's your name and address?","level":"A1"},
@@ -245,7 +244,6 @@
     {"term":"how","definition":"in what way or manner","pos":"adverb","example":"How does it work?","level":"A1"},
     {"term":"hungry","definition":"feeling that you want to eat something","pos":"adjective","example":"I'm really hungry.","level":"A1"},
     {"term":"husband","definition":"the man that somebody is married to; a married man","pos":"noun","example":"This is my husband, Steve.","level":"A1"},
-    {"term":"i","definition":"used as the subject of a verb when the speaker or writer is referring to himself/herself","pos":"pronoun","example":"I think I'd better go now.","level":"A1"},
     {"term":"important","definition":"having a great effect on people or things; of great value","pos":"adjective","example":"an important issue/question/point/factor","level":"A1"},
     {"term":"in","definition":"into an object, an area or a substance","pos":"adverb","example":"She opened the door and went in.","level":"A1"},
     {"term":"interesting","definition":"attracting your attention because it is/they are special, exciting or unusual","pos":"adjective","example":"The article raises several interesting questions.","level":"A1"},
@@ -3004,6 +3002,8 @@
     {"term":"laughter","definition":"the act or sound of laughing","pos":"noun","example":"to roar/howl with laughter","level":"B2"},
     {"term":"launch","definition":"the action of launching something","pos":"noun","example":"a missile/rocket launch","level":"B2"},
     {"term":"layer","definition":"a quantity or sheet of something that lies over a surface or between surfaces","pos":"noun","example":"layer (of something), A thin layer of dust covered everything.","level":"B2"},
-    {"term":"leading","definition":"most important or most successful","pos":"adjective","example":"a leading expert/authority/figure/member","level":"B2"}
+    {"term":"leading","definition":"most important or most successful","pos":"adjective","example":"a leading expert/authority/figure/member","level":"B2"},
+    {"term":"leaflet","definition":"a printed sheet of paper or a few printed pages that are given free to advertise or give information about something","pos":"noun","example":"We picked up a few leaflets on local places of interest.","level":"B2"},
+    {"term":"leak","definition":"a small hole that lets liquid or gas flow in or out of something by accident","pos":"noun","example":"a leak in the roof","level":"B2"}
   ]
 }

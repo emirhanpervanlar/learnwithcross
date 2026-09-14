@@ -16,13 +16,18 @@ const word: PlacedWord = {
 const other: PlacedWord = { ...word, id: 'w1', display: 'look after', letters: 'lookafter' }
 
 describe('levelFor', () => {
-  it('starts at Başlangıç and progresses through thresholds', () => {
+  it('starts at Başlangıç and progresses through 10 thresholds', () => {
     expect(levelFor(0)).toMatchObject({ number: 1, name: 'Başlangıç', nextAt: 5 })
     expect(levelFor(5)).toMatchObject({ number: 2, name: 'Gelişiyor', nextAt: 15 })
     expect(levelFor(15)).toMatchObject({ number: 3, name: 'İyi', nextAt: 30 })
     expect(levelFor(30)).toMatchObject({ number: 4, name: 'Çok İyi', nextAt: 50 })
-    expect(levelFor(50)).toMatchObject({ number: 5, name: 'Usta', nextAt: null })
-    expect(levelFor(99)).toMatchObject({ number: 5, progress: 1 })
+    expect(levelFor(50)).toMatchObject({ number: 5, name: 'Usta', nextAt: 70 })
+    expect(levelFor(70)).toMatchObject({ number: 6, name: 'Uzman', nextAt: 95 })
+    expect(levelFor(95)).toMatchObject({ number: 7, name: 'Kurmay', nextAt: 125 })
+    expect(levelFor(125)).toMatchObject({ number: 8, name: 'Şampiyon', nextAt: 160 })
+    expect(levelFor(160)).toMatchObject({ number: 9, name: 'Efsane', nextAt: 200 })
+    expect(levelFor(200)).toMatchObject({ number: 10, name: 'Titanyum', nextAt: null })
+    expect(levelFor(500)).toMatchObject({ number: 10, progress: 1 })
   })
 
   it('reports progress between thresholds', () => {
@@ -30,6 +35,11 @@ describe('levelFor', () => {
     expect(lv.number).toBe(2)
     expect(lv.nextAt).toBe(15)
     expect(lv.progress).toBe(0.5)
+
+    const lvHigh = levelFor(99)
+    expect(lvHigh.number).toBe(7)
+    expect(lvHigh.nextAt).toBe(125)
+    expect(lvHigh.progress).toBeCloseTo((99 - 95) / (125 - 95), 5)
   })
 })
 

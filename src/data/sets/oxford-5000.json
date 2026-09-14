@@ -5,7 +5,6 @@
   "level": "A1-C1",
   "description": "Oxford 5000: Oxford 3000 + ileri seviye (B2-C1) ek 2000 kelime, toplam ~5000 resmi başlık.",
   "words": [
-    {"term":"a","definition":"used before countable or singular nouns referring to people or things that have not already been mentioned","pos":"indefinite article","example":"a man/horse/unit","level":"A1"},
     {"term":"abandon","definition":"to leave somebody, especially somebody you are responsible for, with no intention of returning","pos":"verb","example":"abandon somebody, The baby had been abandoned by its mother.","level":"B2"},
     {"term":"ability","definition":"the fact that somebody/something is able to do something","pos":"noun","example":"People with the disease may lose their ability to communicate.","level":"A2"},
     {"term":"able","definition":"to have the skill, intelligence, opportunity, etc. needed to do something","pos":"adjective","example":"You must be able to speak French for this job.","level":"A2"},
@@ -1306,7 +1305,6 @@
     {"term":"hurry","definition":"the need or wish to get something done quickly","pos":"noun","example":"Take your time—there's no hurry.","level":"B1"},
     {"term":"hurt","definition":"injured physically","pos":"adjective","example":"None of the passengers were badly hurt.","level":"A2"},
     {"term":"husband","definition":"the man that somebody is married to; a married man","pos":"noun","example":"This is my husband, Steve.","level":"A1"},
-    {"term":"i","definition":"used as the subject of a verb when the speaker or writer is referring to himself/herself","pos":"pronoun","example":"I think I'd better go now.","level":"A1"},
     {"term":"ice","definition":"water that has frozen and become solid","pos":"noun","example":"There was ice on the windows.","level":"A1"},
     {"term":"ice cream","definition":"a type of sweet frozen food made from milk fat, tasting of fruit, chocolate, etc. and often eaten as a dessert; a small amount of this food intended for one person, often served in a container made of biscuit that is like a cone in shape","pos":"noun","example":"Desserts are served with cream or ice cream.","level":"A1"},
     {"term":"idea","definition":"a plan, thought or suggestion, especially about what to do in a particular situation","pos":"noun","example":"It would be a good idea to call before we leave.","level":"A1"},

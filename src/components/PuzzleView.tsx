@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from 'react'
 import type { ChangeEvent, KeyboardEvent } from 'react'
 import type { Difficulty, Direction, Puzzle, PuzzleClue, PuzzleCell } from '../types'
 import { getWordSetById } from '../data/sets'
+import { latinize } from '../lib/crossword'
 import {
   usePuzzleSolver,
   type SolverCallbacks,
@@ -54,6 +55,7 @@ export function PuzzleView({
   const [isMobile, setIsMobile] = useState(false)
   const [stickyOn, setStickyOn] = useState(false)
   const [barBottom, setBarBottom] = useState(0)
+  const [desktopCellPx, setDesktopCellPx] = useState<number | null>(null)
 
   const set = getWordSetById(puzzle.setSlug)
   const activeWordId = solver.currentWord()?.id
@@ -68,6 +70,23 @@ export function PuzzleView({
   useEffect(() => {
     containerRef.current?.focus()
   }, [])
+
+  // active cell ref so the keyboard-auto-scroll effect can read the newest value
+  const activeRef = useRef(solver.active)
+  activeRef.current = solver.active
+
+  // desktop: size the grid to fill the available row width (mobile keeps its formula)
+  useEffect(() => {
+    if (isMobile) return
+    const el = gridRef.current
+    if (!el) return
+    const ro = new ResizeObserver(entries => {
+      const w = entries[0]?.contentRect.width
+      if (w && w > 0) setDesktopCellPx(Math.floor(w / puzzle.width))
+    })
+    ro.observe(el)
+    return () => ro.disconnect()
+  }, [isMobile, puzzle.width])
 
   // persist progress while the puzzle is unfinished; report completion once
   const onSessionChangeRef = useRef(onSessionChange)
@@ -106,11 +125,29 @@ export function PuzzleView({
   useEffect(() => {
     if (!isMobile) return
     const GRID_GRACE = 40
+    // keep the active cell visible when a virtual keyboard shrinks the viewport
+    const scrollActiveIntoView = () => {
+      const active = activeRef.current
+      if (!active) return
+      const vv = window.visualViewport
+      if (!vv) return
+      const keyboardOpen = vv.height < window.innerHeight - 80
+      if (!keyboardOpen) return
+      const el = gridRef.current?.querySelector<HTMLElement>(
+        `[data-cell="${active.row}-${active.col}"]`,
+      )
+      if (!el) return
+      const r = el.getBoundingClientRect()
+      if (r.top < 0 || r.bottom > vv.height) {
+        el.scrollIntoView({ block: 'center', behavior: 'smooth' })
+      }
+    }
     const update = () => {
       const el = gridRef.current
       if (el) setStickyOn(el.getBoundingClientRect().top >= -GRID_GRACE)
       const vv = window.visualViewport
       if (vv) setBarBottom(Math.max(0, Math.round(window.innerHeight - (vv.offsetTop + vv.height))))
+      scrollActiveIntoView()
     }
     update()
     window.addEventListener('scroll', update, { passive: true })
@@ -126,7 +163,9 @@ export function PuzzleView({
   const onKeyDown = (e: KeyboardEvent) => {
     // The hidden input handles its own keys (mobile + after a cell tap)
     if (e.target === inputRef.current) return
-    const k = e.key
+    const raw = e.key
+    if (raw === 'Process' || raw === 'Unidentified') return
+    const k = latinize(raw)
     if (/^[a-zA-Z]$/.test(k)) {
       solver.inputLetter(k.toLowerCase())
       e.preventDefault()
@@ -155,8 +194,9 @@ export function PuzzleView({
   }
 
   const onInputKeyDown = (e: KeyboardEvent<HTMLInputElement>) => {
-    const k = e.key
-    if (k === 'Process' || k === 'Unidentified') return
+    const raw = e.key
+    if (raw === 'Process' || raw === 'Unidentified') return
+    const k = latinize(raw)
     if (/^[a-zA-Z]$/.test(k)) {
       e.preventDefault()
       e.stopPropagation()
@@ -192,7 +232,7 @@ export function PuzzleView({
   const onInputChange = (e: ChangeEvent<HTMLInputElement>) => {
     const v = e.target.value
     if (!v) return
-    const ch = v[v.length - 1]
+    const ch = latinize(v[v.length - 1])
     if (/^[a-zA-Z]$/.test(ch)) {
       solver.inputLetter(ch.toLowerCase())
     }
@@ -229,6 +269,7 @@ export function PuzzleView({
       <button
         key={key}
         type="button"
+        data-cell={key}
         onClick={() => {
           solver.select(row, col)
           inputRef.current?.focus()
@@ -257,7 +298,11 @@ export function PuzzleView({
 
   const hintConfig = DIFFICULTY_CONFIG[puzzle.difficulty]
 
-  const cellSize = `clamp(1.4rem, calc((100vw - 56px) / ${puzzle.width}), 2.5rem)`
+  // mobile: viewport-based sizing; desktop: fills the flex row (capped huge)
+  const cellSize =
+    isMobile || desktopCellPx == null
+      ? `clamp(1.4rem, calc((100vw - 56px) / ${puzzle.width}), 2.5rem)`
+      : `${Math.max(24, Math.min(desktopCellPx, 64))}px`
 
   return (
     <div
@@ -334,7 +379,7 @@ export function PuzzleView({
       <div className="mt-5 flex flex-col gap-6 lg:flex-row lg:items-start">
         <div
           ref={gridRef}
-          className="w-full max-w-full overflow-x-auto lg:w-auto lg:shrink-0 lg:max-w-[min(100%,620px)]"
+          className="w-full max-w-full overflow-x-auto lg:min-w-0 lg:flex-1"
         >
           <div className="relative mx-auto w-fit">
             <div
@@ -369,7 +414,7 @@ export function PuzzleView({
           </p>
         </div>
 
-        <div className="grid min-w-0 flex-1 gap-6 sm:grid-cols-2 lg:grid-cols-1">
+        <div className="grid min-w-0 flex-1 gap-6 sm:grid-cols-2 lg:w-80 lg:shrink-0 lg:flex-none lg:grid-cols-1">
           {([['across', acrossClues], ['down', downClues]] as const).map(([dir, clues]) => (
             <div key={dir} className="rounded-xl border border-slate-200 bg-white p-4 shadow-sm">
               <h3 className="text-sm font-semibold uppercase tracking-wide text-slate-500">

@@ -131,7 +131,7 @@ export function SetDetail({ set, onBack, onGenerate }: Props) {
           />
         </div>
 
-        <ul className="mt-4 max-h-[28rem] divide-y divide-slate-100 overflow-y-auto">
+        <ul className="nice-scroll mt-4 max-h-[28rem] divide-y divide-slate-100 overflow-y-auto">
           {filtered.map((w, i) => (
             <li key={w.term + i} className="flex items-baseline gap-3 py-2.5">
               <span className="w-36 shrink-0 font-semibold text-slate-900">{w.term}</span>
