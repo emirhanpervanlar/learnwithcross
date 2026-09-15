@@ -14,8 +14,8 @@ export function WelcomeView({ onDone }: Props) {
   }
 
   return (
-    <div className="mx-auto max-w-md">
-      <div className="rounded-2xl border border-slate-200 bg-white p-8 text-center shadow-sm">
+    <div className="flex min-h-screen items-center justify-center bg-slate-50 px-4 py-10">
+      <div className="anim-rise w-full max-w-md rounded-2xl border border-slate-200 bg-white p-8 text-center shadow-lg">
         <div className="mx-auto flex h-16 w-16 items-center justify-center rounded-2xl bg-indigo-50 text-3xl">
           🧩
         </div>

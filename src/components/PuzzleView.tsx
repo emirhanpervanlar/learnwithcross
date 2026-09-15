@@ -1,5 +1,5 @@
-import { useEffect, useRef, useState } from 'react'
-import type { ChangeEvent, KeyboardEvent } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
+import type { ChangeEvent, KeyboardEvent, TouchEvent } from 'react'
 import type { Difficulty, Direction, Puzzle, PuzzleClue, PuzzleCell } from '../types'
 import { getWordSetById } from '../data/sets'
 import { latinize } from '../lib/crossword'
@@ -18,11 +18,6 @@ interface Props {
   onFinished: () => void
   onBack: () => void
   learning: SolverCallbacks
-}
-
-const DIR_LABEL: Record<Direction, string> = {
-  across: 'Yatay (Across)',
-  down: 'Dikey (Down)',
 }
 
 const DIR_SHORT: Record<Direction, string> = {
@@ -51,9 +46,9 @@ export function PuzzleView({
   const containerRef = useRef<HTMLDivElement>(null)
   const inputRef = useRef<HTMLInputElement>(null)
   const gridRef = useRef<HTMLDivElement>(null)
+  const slideScrollerRef = useRef<HTMLDivElement>(null)
 
   const [isMobile, setIsMobile] = useState(false)
-  const [stickyOn, setStickyOn] = useState(false)
   const [barBottom, setBarBottom] = useState(0)
   const [desktopCellPx, setDesktopCellPx] = useState<number | null>(null)
 
@@ -65,7 +60,7 @@ export function PuzzleView({
 
   const acrossClues = puzzle.clues.filter(c => c.dir === 'across')
   const downClues = puzzle.clues.filter(c => c.dir === 'down')
-  const activeClue = activeWordId ? puzzle.clues.find(c => c.wordId === activeWordId) : undefined
+  const orderedClues = useMemo(() => [...acrossClues, ...downClues], [acrossClues, downClues])
 
   useEffect(() => {
     containerRef.current?.focus()
@@ -112,8 +107,6 @@ export function PuzzleView({
     })
   }, [solver.entries, solver.active, solver.hintsUsed, solver.checkMode, allDone])
 
-  // only on mobile: a sticky bottom bar shows the selected clue,
-  // stays above the keyboard, and disables once the user scrolls away
   useEffect(() => {
     const mq = window.matchMedia('(max-width: 1023px)')
     const apply = () => setIsMobile(mq.matches)
@@ -122,10 +115,9 @@ export function PuzzleView({
     return () => mq.removeEventListener('change', apply)
   }, [])
 
+  // keep the bottom slide above the virtual keyboard and the active cell visible
   useEffect(() => {
     if (!isMobile) return
-    const GRID_GRACE = 40
-    // keep the active cell visible when a virtual keyboard shrinks the viewport
     const scrollActiveIntoView = () => {
       const active = activeRef.current
       if (!active) return
@@ -143,8 +135,6 @@ export function PuzzleView({
       }
     }
     const update = () => {
-      const el = gridRef.current
-      if (el) setStickyOn(el.getBoundingClientRect().top >= -GRID_GRACE)
       const vv = window.visualViewport
       if (vv) setBarBottom(Math.max(0, Math.round(window.innerHeight - (vv.offsetTop + vv.height))))
       scrollActiveIntoView()
@@ -159,6 +149,46 @@ export function PuzzleView({
       window.visualViewport?.removeEventListener('resize', update)
     }
   }, [isMobile])
+
+  // keep the active clue visible inside the swipeable slide
+  useEffect(() => {
+    if (!isMobile || !activeWordId) return
+    const chip = slideScrollerRef.current?.querySelector<HTMLElement>(
+      `[data-word="${activeWordId}"]`,
+    )
+    if (chip) chip.scrollIntoView({ inline: 'center', block: 'nearest', behavior: 'smooth' })
+  }, [activeWordId, isMobile])
+
+  const focusInput = () => inputRef.current?.focus()
+
+  const navigateSlide = (delta: number) => {
+    const usable = orderedClues.filter(c => !solver.completed.has(c.wordId))
+    const list = usable.length > 0 ? usable : orderedClues
+    const idx = list.findIndex(c => c.wordId === activeWordId)
+    const target = list[(((idx < 0 ? 0 : idx) + delta) % list.length + list.length) % list.length]
+    if (!target) return
+    solver.gotoWord(target.wordId)
+    focusInput()
+  }
+
+  const touchX = useRef<number | null>(null)
+  const touchScrollLeft = useRef<number>(0)
+  const onSlideTouchStart = (e: TouchEvent<HTMLDivElement>) => {
+    touchX.current = e.touches[0]?.clientX ?? null
+    touchScrollLeft.current = e.currentTarget.scrollLeft
+  }
+  const onSlideTouchEnd = (e: TouchEvent<HTMLDivElement>) => {
+    if (touchX.current == null) return
+    const dx = (e.changedTouches[0]?.clientX ?? touchX.current) - touchX.current
+    // if the user was scrolling the chip strip, don't hijack it into navigation
+    if (Math.abs(e.currentTarget.scrollLeft - touchScrollLeft.current) > 10) {
+      touchX.current = null
+      return
+    }
+    touchX.current = null
+    if (dx <= -40) navigateSlide(1)
+    else if (dx >= 40) navigateSlide(-1)
+  }
 
   const onKeyDown = (e: KeyboardEvent) => {
     // The hidden input handles its own keys (mobile + after a cell tap)
@@ -272,7 +302,7 @@ export function PuzzleView({
         data-cell={key}
         onClick={() => {
           solver.select(row, col)
-          inputRef.current?.focus()
+          focusInput()
         }}
         className={`relative z-10 flex h-full w-full items-center justify-center ${bg} ${ring} ${textColor} transition-colors focus:outline-none`}
         aria-label={`${row + 1}. satır, ${col + 1}. sütun`}
@@ -311,17 +341,18 @@ export function PuzzleView({
       onKeyDown={onKeyDown}
       className="rounded-lg outline-none"
     >
-      <div className="flex flex-wrap items-center justify-between gap-3">
+      {/* mobile: a single close button lives in the fullscreen shell; here only title */}
+      <div className="flex items-center justify-center gap-3 py-1 lg:justify-between">
         <button
           onClick={onBack}
-          className="text-sm font-medium text-slate-500 transition hover:text-indigo-600"
+          className="hidden text-sm font-medium text-slate-500 transition hover:text-indigo-600 lg:inline-flex"
         >
           ← Set Detayı
         </button>
-        <h2 className="text-lg font-bold text-slate-900">
+        <h2 className="shrink-0 text-lg font-bold text-slate-900">
           {set?.name ?? puzzle.setSlug} Bulmacası
         </h2>
-        <div className="flex flex-wrap gap-2">
+        <div className="hidden items-center gap-2 lg:flex">
           {hintConfig.hintLimit !== 0 && (
             <button
               onClick={solver.hint}
@@ -347,12 +378,6 @@ export function PuzzleView({
           >
             {solver.checkMode ? 'Kontrol (açık)' : 'Kontrol Et'}
           </button>
-          <button
-            onClick={solver.clearAll}
-            className="rounded-lg border border-slate-300 bg-white px-3 py-1.5 text-sm font-medium text-slate-700 transition hover:border-red-400 hover:text-red-600"
-          >
-            Temizle
-          </button>
         </div>
       </div>
 
@@ -369,12 +394,6 @@ export function PuzzleView({
           {finished}/{totalWords} kelime tamamlandı
         </span>
       </div>
-
-      {allDone && (
-        <div className="mt-4 rounded-xl border border-green-200 bg-green-50 px-4 py-3 text-sm font-semibold text-green-700">
-          Tebrikler! Bulmacanın tamamını çözdün 🎉
-        </div>
-      )}
 
       <div className="mt-5 flex flex-col gap-6 lg:flex-row lg:items-start">
         <div
@@ -414,11 +433,11 @@ export function PuzzleView({
           </p>
         </div>
 
-        <div className="grid min-w-0 flex-1 gap-6 sm:grid-cols-2 lg:w-80 lg:shrink-0 lg:flex-none lg:grid-cols-1">
+        <div className="hidden min-w-0 flex-1 gap-6 sm:grid-cols-2 lg:grid lg:w-80 lg:shrink-0 lg:flex-none lg:grid-cols-1">
           {([['across', acrossClues], ['down', downClues]] as const).map(([dir, clues]) => (
             <div key={dir} className="rounded-xl border border-slate-200 bg-white p-4 shadow-sm">
               <h3 className="text-sm font-semibold uppercase tracking-wide text-slate-500">
-                {DIR_LABEL[dir]}
+                {dir === 'across' ? 'Yatay (Across)' : 'Dikey (Down)'}
               </h3>
               <ol className="mt-3 grid gap-x-4 gap-y-1 sm:grid-cols-2 lg:grid-cols-1">
                 {clues.map(clue => (
@@ -436,26 +455,73 @@ export function PuzzleView({
         </div>
       </div>
 
-      {isMobile && stickyOn && (
-        <>
-          <div
-            role="status"
-            aria-live="polite"
-            className="fixed inset-x-0 z-50 border-t border-slate-200 bg-white/95 px-4 py-2 shadow-[0_-4px_12px_rgba(0,0,0,0.08)] backdrop-blur lg:hidden"
-            style={{ bottom: barBottom }}
-          >
-            <div className="mx-auto flex max-w-6xl items-center gap-3">
-              <span className="shrink-0 rounded-md bg-indigo-600 px-2 py-0.5 text-xs font-bold uppercase tracking-wide text-white">
-                {activeClue ? `${activeClue.number} ${DIR_SHORT[activeClue.dir]}` : '—'}
-              </span>
-              <span className="flex-1 text-sm font-medium text-slate-800">
-                {activeClue ? activeClue.text : 'Bir hücre seç; ipucu burada görünür.'}
-              </span>
+      {isMobile && (
+        <div
+          className="anim-rise fixed inset-x-0 z-50 border-t border-slate-200 bg-white/95 shadow-[0_-4px_12px_rgba(0,0,0,0.1)] backdrop-blur lg:hidden"
+          style={{ bottom: barBottom }}
+          role="region"
+          aria-label="Sorular"
+        >
+          <div className="mx-auto flex max-w-6xl items-stretch gap-1 px-1 py-2">
+            <button
+              type="button"
+              onClick={() => navigateSlide(-1)}
+              aria-label="Önceki soru"
+              className="flex shrink-0 items-center justify-center rounded-lg px-2 text-slate-500 transition hover:bg-slate-100 hover:text-indigo-600 active:bg-slate-200"
+            >
+              ‹
+            </button>
+            <div
+              ref={slideScrollerRef}
+              className="nice-scroll flex gap-2 overflow-x-auto scroll-smooth px-1 py-1"
+              onTouchStart={onSlideTouchStart}
+              onTouchEnd={onSlideTouchEnd}
+              style={{ scrollbarWidth: 'none' }}
+            >
+              {orderedClues.map(clue => {
+                const isActive = clue.wordId === activeWordId
+                const isDone = solver.completed.has(clue.wordId)
+                return (
+                  <button
+                    key={clue.id}
+                    type="button"
+                    data-word={clue.wordId}
+                    onClick={() => {
+                      solver.gotoWord(clue.wordId)
+                      focusInput()
+                    }}
+                    className={`flex shrink-0 items-center gap-1.5 rounded-full border px-3 py-1.5 text-left text-xs font-medium transition ${
+                      isActive
+                        ? 'border-indigo-600 bg-indigo-600 text-white shadow'
+                        : isDone
+                          ? 'border-green-200 bg-green-50 text-green-700'
+                          : 'border-slate-200 bg-slate-50 text-slate-700 active:bg-slate-100'
+                    }`}
+                  >
+                    <span className="font-bold">{clue.number}</span>
+                    <span
+                      className={`text-[10px] uppercase ${isActive ? 'text-indigo-100' : 'text-slate-400'}`}
+                    >
+                      {DIR_SHORT[clue.dir]}
+                    </span>
+                    <span className="max-w-44 truncate">{clue.text}</span>
+                    {isDone && <span className="text-green-600">✓</span>}
+                  </button>
+                )
+              })}
             </div>
+            <button
+              type="button"
+              onClick={() => navigateSlide(1)}
+              aria-label="Sonraki soru"
+              className="flex shrink-0 items-center justify-center rounded-lg px-2 text-slate-500 transition hover:bg-slate-100 hover:text-indigo-600 active:bg-slate-200"
+            >
+              ›
+            </button>
           </div>
-          <div className="h-16 lg:hidden" aria-hidden="true" />
-        </>
+        </div>
       )}
+      {isMobile && <div className="h-20 lg:hidden" aria-hidden="true" />}
     </div>
   )
 }

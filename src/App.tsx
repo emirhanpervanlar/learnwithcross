@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
+import type { ReactNode } from 'react'
 import {
   ACHIEVEMENTS,
   addXp,
@@ -44,9 +45,10 @@ import { SetCatalog } from './components/SetCatalog'
 import { SetDetail } from './components/SetDetail'
 import { StoryView } from './components/StoryView'
 import { WelcomeView } from './components/WelcomeView'
+import { GameFinish, type FinishData } from './components/GameFinish'
 import type { Difficulty, LearningMap, PlacedWord, Puzzle, WordSet } from './types'
 
-type View = 'catalog' | 'set' | 'puzzle' | 'learning' | 'story' | 'profile'
+type View = 'catalog' | 'set' | 'puzzle' | 'learning' | 'story' | 'profile' | 'finish'
 type ReturnView = 'set' | 'story' | 'learning' | 'catalog'
 
 const EMPTY_SNAPSHOT: SessionSnapshot = {
@@ -54,6 +56,34 @@ const EMPTY_SNAPSHOT: SessionSnapshot = {
   active: null,
   hintsUsed: 0,
   checkMode: false,
+}
+
+function computeMetricsFor(profile: Profile | null, learning: LearningMap): Metrics {
+  const entries = Object.values(learning)
+  const wordCompletions = entries.reduce((sum, e) => sum + e.completedCount, 0)
+  const wordsAtMasterMax = entries.filter(e => levelFor(e.score).number === MASTER_MAX_LEVEL).length
+  const topicSolved = Object.entries(profile?.setCompletions ?? {}).reduce(
+    (sum, [slug, n]) => (TOPIC_SET_IDS.has(slug) ? sum + n : sum),
+    0,
+  )
+  const level = profile ? playerLevelFromXp(profile.xp).level : 1
+  return {
+    xp: profile?.xp ?? 0,
+    playerLevel: level,
+    puzzlesCompleted: profile?.puzzlesCompleted ?? 0,
+    hardPuzzles: profile?.hardPuzzles ?? 0,
+    noHintPuzzles: profile?.noHintPuzzles ?? 0,
+    hintsUsed: profile?.hintsUsed ?? 0,
+    wordsLearned: entries.length,
+    wordCompletions,
+    wordsAtMasterMax,
+    practiceDays: profile?.practiceDays.length ?? 0,
+    storyCleared: profile?.storyCleared ?? 0,
+    resumes: profile?.resumes ?? 0,
+    topicSolved,
+    hasProfile: !!profile,
+    storyStarted: profile?.storyStarted || (profile?.storyCleared ?? 0) > 0,
+  }
 }
 
 interface GenerateOptions {
@@ -72,6 +102,20 @@ export default function App() {
   const [puzzleDone, setPuzzleDone] = useState(false)
   const [returnView, setReturnView] = useState<ReturnView>('set')
   const [pendingNav, setPendingNav] = useState<(() => void) | null>(null)
+  const [isMobile, setIsMobile] = useState<boolean>(
+    () => typeof window !== 'undefined' && window.matchMedia('(max-width: 1023px)').matches,
+  )
+  const [finishData, setFinishData] = useState<FinishData | null>(null)
+  const [puzzleWordsStart, setPuzzleWordsStart] = useState<Map<string, number>>(new Map())
+  const [toasts, setToasts] = useState<{ key: string; icon: string; title: string }[]>([])
+
+  useEffect(() => {
+    const mq = window.matchMedia('(max-width: 1023px)')
+    const apply = () => setIsMobile(mq.matches)
+    apply()
+    mq.addEventListener('change', apply)
+    return () => mq.removeEventListener('change', apply)
+  }, [])
 
   const learningRef = useRef(learning)
   useEffect(() => {
@@ -103,35 +147,40 @@ export default function App() {
   const storyReviewWords = useMemo(() => buildReviewWords(learning, 120), [learning])
 
   // achievements + metrics
-  const metrics = useMemo<Metrics>(() => {
-    const entries = Object.values(learning)
-    const wordCompletions = entries.reduce((sum, e) => sum + e.completedCount, 0)
-    const wordsAtMasterMax = entries.filter(e => levelFor(e.score).number === MASTER_MAX_LEVEL).length
-    const topicSolved = Object.entries(profile?.setCompletions ?? {}).reduce(
-      (sum, [slug, n]) => (TOPIC_SET_IDS.has(slug) ? sum + n : sum),
-      0,
-    )
-    const level = profile ? playerLevelFromXp(profile.xp).level : 1
-    return {
-      xp: profile?.xp ?? 0,
-      playerLevel: level,
-      puzzlesCompleted: profile?.puzzlesCompleted ?? 0,
-      hardPuzzles: profile?.hardPuzzles ?? 0,
-      noHintPuzzles: profile?.noHintPuzzles ?? 0,
-      hintsUsed: profile?.hintsUsed ?? 0,
-      wordsLearned: entries.length,
-      wordCompletions,
-      wordsAtMasterMax,
-      practiceDays: profile?.practiceDays.length ?? 0,
-      storyCleared: profile?.storyCleared ?? 0,
-      resumes: profile?.resumes ?? 0,
-      topicSolved,
-      hasProfile: !!profile,
-      storyStarted: profile?.storyStarted || (profile?.storyCleared ?? 0) > 0,
-    }
-  }, [profile, learning])
+  const metrics = useMemo<Metrics>(() => computeMetricsFor(profile, learning), [profile, learning])
   const unlocked = useMemo(() => new Set(computeUnlocked(metrics)), [metrics])
   const unlockedCount = unlocked.size
+
+  // toast newly unlocked achievements while playing (not re-shown on the finish screen)
+  const prevUnlockedRef = useRef<Set<string> | null>(null)
+  const viewRef = useRef(view)
+  viewRef.current = view
+  useEffect(() => {
+    const prev = prevUnlockedRef.current
+    if (prev === null) {
+      prevUnlockedRef.current = unlocked
+      return
+    }
+    if (viewRef.current === 'finish') {
+      prevUnlockedRef.current = unlocked
+      return
+    }
+    const discovered = ACHIEVEMENTS.filter(a => !prev.has(a.id) && unlocked.has(a.id))
+    if (discovered.length > 0) {
+      const items = discovered.map(a => ({
+        key: `${a.id}-${Date.now()}-${Math.random()}`,
+        icon: a.icon,
+        title: a.title,
+      }))
+      setToasts(prevToasts => [...prevToasts, ...items])
+      items.forEach((it, i) => {
+        window.setTimeout(() => {
+          setToasts(prevToasts => prevToasts.filter(t => t.key !== it.key))
+        }, 4200 + i * 500)
+      })
+    }
+    prevUnlockedRef.current = unlocked
+  }, [unlocked])
 
   const handleProfileCreate = (name: string) => {
     commitProfile(createProfileObject(name))
@@ -181,6 +230,15 @@ export default function App() {
     setSession(EMPTY_SNAPSHOT)
     setReturnView(to)
     setPuzzleDone(false)
+    setFinishData(null)
+    setPuzzleWordsStart(
+      new Map(
+        newPuzzle.words.map(w => [
+          w.id,
+          learningRef.current[learningKeyFor(w, set.id)]?.score ?? 0,
+        ]),
+      ),
+    )
     setView('puzzle')
     saveSavedSession({ puzzle: newPuzzle, snapshot: EMPTY_SNAPSHOT, savedAt: Date.now() })
   }
@@ -217,6 +275,44 @@ export default function App() {
       }
     }
     commitProfile(next)
+
+    // --- build the celebration payload ---
+    const pz = puzzle!
+    const actualSet = getWordSetById(pz.setSlug)
+    const prevLvl = playerLevelFromXp(p.xp)
+    const afterLvl = playerLevelFromXp(next.xp)
+    const beforeIds = new Set(computeUnlocked(computeMetricsFor(p, learningRef.current)))
+    const afterIds = new Set(computeUnlocked(computeMetricsFor(next, learningRef.current)))
+    const newAchievements = ACHIEVEMENTS.filter(a => !beforeIds.has(a.id) && afterIds.has(a.id))
+    const startScores = puzzleWordsStart
+    const wordEvents: FinishData['words'] = pz.words.map(w => {
+      const after = learningRef.current[learningKeyFor(w, pz.setSlug)]?.score ?? 0
+      const before = startScores.get(w.id) ?? 0
+      const from = levelFor(before).number
+      const to = levelFor(after).number
+      return {
+        id: w.id,
+        term: w.display,
+        levelFrom: from,
+        levelTo: to,
+        leveledUp: to > from,
+        scoreTo: after,
+      }
+    })
+    setFinishData({
+      words: wordEvents,
+      xpGained: next.xp - p.xp,
+      xpFrom: p.xp,
+      xpTo: next.xp,
+      playerFrom: prevLvl.level,
+      playerTo: afterLvl.level,
+      playerLeveledUp: afterLvl.level > prevLvl.level,
+      achievements: newAchievements,
+      setName: actualSet?.name ?? pz.setSlug,
+      difficultyLabel: DIFFICULTY_LABEL[pz.difficulty],
+      wordCount: pz.words.length,
+    })
+    setView('finish')
   }
 
   const onPuzzleBack = () => {
@@ -235,7 +331,16 @@ export default function App() {
     setPuzzle(saved.puzzle)
     setSession(saved.snapshot)
     setPuzzleDone(false)
+    setFinishData(null)
     setReturnView(resolveReturn(saved.puzzle))
+    setPuzzleWordsStart(
+      new Map(
+        saved.puzzle.words.map(w => [
+          w.id,
+          learningRef.current[learningKeyFor(w, saved.puzzle.setSlug)]?.score ?? 0,
+        ]),
+      ),
+    )
     setView('puzzle')
     if (profileRef.current) commitProfile(p => ({ ...p, resumes: p.resumes + 1 }))
   }
@@ -371,70 +476,108 @@ export default function App() {
     </nav>
   )
 
+  const puzzleViewEl =
+    view === 'puzzle' && puzzle ? (
+      <PuzzleView
+        key={puzzle.id}
+        puzzle={puzzle}
+        session={session}
+        onSessionChange={handleSessionChange}
+        onFinished={handleFinished}
+        onBack={onPuzzleBack}
+        learning={learningCallbacks}
+      />
+    ) : null
+
   return (
     <div className="min-h-screen bg-slate-50 text-slate-900">
-      <header className="border-b border-slate-200 bg-white">
-        <div className="mx-auto max-w-6xl px-4 py-5">
-          <h1 className="text-2xl font-bold tracking-tight text-slate-900">Kelime Çengeli</h1>
-          <p className="text-sm text-slate-500">
-            İngilizce kelime setlerinden otomatik çengel bulmaca üretici
-          </p>
-          {renderNav}
+      {view === 'puzzle' && puzzle && isMobile ? (
+        <MobilePuzzleShell onClose={onPuzzleBack}>{puzzleViewEl}</MobilePuzzleShell>
+      ) : (
+        <>
+          <header className="border-b border-slate-200 bg-white">
+            <div className="mx-auto max-w-6xl px-4 py-5">
+              <h1 className="text-2xl font-bold tracking-tight text-slate-900">Kelime Çengeli</h1>
+              <p className="text-sm text-slate-500">
+                İngilizce kelime setlerinden otomatik çengel bulmaca üretici
+              </p>
+              {renderNav}
+            </div>
+          </header>
+          <main className="mx-auto max-w-6xl px-4 py-8">
+            {puzzleViewEl}
+
+            {view === 'finish' && finishData && (
+              <GameFinish
+                data={finishData}
+                onNewPuzzle={openCatalog}
+                onWordList={openLearning}
+              />
+            )}
+
+            {view === 'set' && selectedSet && (
+              <SetDetail
+                set={selectedSet}
+                onBack={openCatalog}
+                onGenerate={options => generate(selectedSet, options)}
+              />
+            )}
+
+            {view === 'learning' && (
+              <LearningView
+                entries={learning}
+                onBack={openCatalog}
+                onOpenSet={openSetFromLearning}
+                onReview={openReview}
+              />
+            )}
+
+            {view === 'story' && (
+              <StoryView storyCleared={profile.storyCleared} onPlay={playStory} onBack={openCatalog} />
+            )}
+
+            {view === 'profile' && (
+              <ProfileView
+                profile={profile}
+                wordCount={learningCount}
+                unlocked={unlocked}
+                achievements={ACHIEVEMENTS}
+                onBack={openCatalog}
+              />
+            )}
+
+            {view === 'catalog' && (
+              <>
+                <ResumeCard onResume={resumeSaved} onDiscard={() => clearSavedSession()} />
+                <ProfileCard profile={profile} unlockedCount={unlockedCount} onOpen={openProfile} />
+                <h2 className="mb-4 text-lg font-semibold text-slate-900">Kelime Setleri</h2>
+                <SetCatalog sets={builtInWordSets} onSelect={openSet} />
+              </>
+            )}
+          </main>
+        </>
+      )}
+
+      {toasts.length > 0 && (
+        <div className="pointer-events-none fixed left-1/2 top-3 z-[70] flex w-full max-w-sm -translate-x-1/2 flex-col items-center gap-2 px-4">
+          {toasts.map(t => (
+            <div
+              key={t.key}
+              className="anim-toast pointer-events-auto flex w-full items-center gap-3 rounded-2xl border border-emerald-200 bg-white/95 px-4 py-2.5 shadow-lg backdrop-blur"
+            >
+              <span className="text-xl" aria-hidden="true">
+                {t.icon}
+              </span>
+              <div className="min-w-0 flex-1">
+                <p className="text-xs font-medium uppercase tracking-wide text-emerald-600">
+                  Yeni rozet kazandın!
+                </p>
+                <p className="truncate text-sm font-bold text-slate-900">{t.title}</p>
+              </div>
+            </div>
+          ))}
         </div>
-      </header>
-      <main className="mx-auto max-w-6xl px-4 py-8">
-        {view === 'puzzle' && puzzle && (
-          <PuzzleView
-            key={puzzle.id}
-            puzzle={puzzle}
-            session={session}
-            onSessionChange={handleSessionChange}
-            onFinished={handleFinished}
-            onBack={onPuzzleBack}
-            learning={learningCallbacks}
-          />
-        )}
-
-        {view === 'set' && selectedSet && (
-          <SetDetail
-            set={selectedSet}
-            onBack={openCatalog}
-            onGenerate={options => generate(selectedSet, options)}
-          />
-        )}
-
-        {view === 'learning' && (
-          <LearningView
-            entries={learning}
-            onBack={openCatalog}
-            onOpenSet={openSetFromLearning}
-            onReview={openReview}
-          />
-        )}
-
-        {view === 'story' && (
-          <StoryView storyCleared={profile.storyCleared} onPlay={playStory} onBack={openCatalog} />
-        )}
-
-        {view === 'profile' && (
-          <ProfileView
-            profile={profile}
-            wordCount={learningCount}
-            unlocked={unlocked}
-            achievements={ACHIEVEMENTS}
-            onBack={openCatalog}
-          />
-        )}
-
-        {view === 'catalog' && (
-          <>
-            <ResumeCard onResume={resumeSaved} onDiscard={() => clearSavedSession()} />
-            <ProfileCard profile={profile} unlockedCount={unlockedCount} onOpen={openProfile} />
-            <h2 className="mb-4 text-lg font-semibold text-slate-900">Kelime Setleri</h2>
-            <SetCatalog sets={builtInWordSets} onSelect={openSet} />
-          </>
-        )}
-      </main>
+      )}
 
       {pendingNav && (
         <div
@@ -551,5 +694,26 @@ function ProfileCard({
         <p className="text-xs">{unlockedCount}/100 rozet</p>
       </div>
     </button>
+  )
+}
+
+function MobilePuzzleShell({ onClose, children }: { onClose: () => void; children: ReactNode }) {
+  return (
+    <div className="fixed inset-0 z-40 flex flex-col bg-slate-50">
+      <div className="z-20 border-b border-slate-200 bg-white/95 backdrop-blur">
+        <div className="flex items-center justify-between px-3 py-2.5">
+          <span className="text-sm font-bold text-slate-900">Bulmaca</span>
+          <button
+            type="button"
+            onClick={onClose}
+            aria-label="Bulmacadan çık"
+            className="flex h-9 w-9 items-center justify-center rounded-full bg-slate-100 text-slate-600 transition hover:bg-red-50 hover:text-red-600"
+          >
+            ✕
+          </button>
+        </div>
+      </div>
+      <div className="flex-1 overflow-y-auto px-3 pb-24 pt-1">{children}</div>
+    </div>
   )
 }
