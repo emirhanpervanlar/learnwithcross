@@ -1,6 +1,7 @@
 import type { Word } from '../types'
 import { mulberry32 } from './crossword/random'
 import { normalizeTerm } from './crossword/normalize'
+import { lookupTr } from '../data/tr'
 
 export type Cefr = 'A1' | 'A2' | 'B1' | 'B2' | 'C1' | 'C2'
 
@@ -67,6 +68,41 @@ export function stageConfig(stage: number): StageConfig {
   const wordCount = Math.min(20, 6 + Math.floor(stage / 8))
   const minLength = stage <= 30 ? 3 : stage <= 66 ? 4 : 5
   return { stage, chapter, difficulty, wordCount, minLength }
+}
+
+export type StoryLanguageMode = 'tr' | 'mixed' | 'en'
+
+/**
+ * Story question-language policy:
+ *  - A1 and A2: questions come in Turkish,
+ *  - last third of A2: half Turkish half English,
+ *  - B1 and above: all English.
+ */
+export function storyLanguageForStage(stage: number): StoryLanguageMode {
+  const chapter = chapterForStage(stage)
+  if (chapter.cefr === 'A1') return 'tr'
+  if (chapter.cefr === 'A2') {
+    const len = chapter.end - chapter.start + 1
+    const frac = (stage - chapter.start) / len
+    return frac >= 2 / 3 ? 'mixed' : 'tr'
+  }
+  return 'en'
+}
+
+/** Keeps only words that actually have a Turkish gloss (used for TR story stages). */
+export function filterTranslatedWords(words: Word[]): Word[] {
+  return words.filter(w => lookupTr(normalizeTerm(w.term)) != null)
+}
+
+export function filterTranslatedPools(pools: CefrPools): CefrPools {
+  return {
+    A1: filterTranslatedWords(pools.A1),
+    A2: filterTranslatedWords(pools.A2),
+    B1: filterTranslatedWords(pools.B1),
+    B2: filterTranslatedWords(pools.B2),
+    C1: filterTranslatedWords(pools.C1),
+    C2: filterTranslatedWords(pools.C2),
+  }
 }
 
 export type CefrPools = Record<Cefr, Word[]>

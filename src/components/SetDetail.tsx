@@ -151,7 +151,7 @@ export function SetDetail({ set, onBack, onGenerate }: Props) {
               onChange={e => setShowSynonyms(e.target.checked)}
               className="h-4 w-4 rounded border-slate-300 text-indigo-600 focus:ring-indigo-500"
             />
-            Kolaylaştırıcı bilgi (tür, örnek)
+            Eş anlamlıları göster (tür)
           </label>
         </div>
         <button

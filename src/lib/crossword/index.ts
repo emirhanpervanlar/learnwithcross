@@ -1,8 +1,8 @@
-import type { Difficulty, Puzzle, WordSet } from '../../types'
+import type { Difficulty, Puzzle, Word, WordSet } from '../../types'
 import { generatePuzzle } from './generator'
 import { normalizeTerm } from './normalize'
 import { sampleWords } from './sample'
-import { lookupTr } from '../../data/tr'
+import { lookupSyn, lookupTr } from '../../data/tr'
 
 export { generatePuzzle } from './generator'
 export { latinize, normalizeTerm } from './normalize'
@@ -15,6 +15,8 @@ export interface BuildPuzzleOptions {
   seed?: number
   difficulty?: Difficulty
   questionLanguage?: 'tr' | 'en'
+  /** per-word language override, e.g. for half-half story mixes */
+  perWordLanguage?: (w: Word, index: number) => 'tr' | 'en'
   showSynonyms?: boolean
 }
 
@@ -23,15 +25,14 @@ export function buildPuzzle(set: WordSet, options: BuildPuzzleOptions): Puzzle {
   const sampled = sampleWords(set.words, options.wordCount, options.minLength, options.seed)
   const puzzle = generatePuzzle(
     set.id,
-    sampled.map(w => {
-      let clue =
-        options.questionLanguage === 'tr'
-          ? (lookupTr(normalizeTerm(w.term)) ?? w.definition)
-          : w.definition
+    sampled.map((w, i) => {
+      const lang = options.perWordLanguage?.(w, i) ?? options.questionLanguage
+      let clue = lang === 'tr' ? (lookupTr(normalizeTerm(w.term)) ?? w.definition) : w.definition
       if (options.showSynonyms) {
         const extra: string[] = []
         if (w.pos) extra.push(`(${w.pos})`)
-        if (w.example) extra.push(`örnek: ${w.example}`)
+        const syns = lookupSyn(normalizeTerm(w.term))
+        if (syns) extra.push(syns)
         if (extra.length > 0) clue = `${clue} · ${extra.join(' ')}`
       }
       return { term: w.term, definition: clue }

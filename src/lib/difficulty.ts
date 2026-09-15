@@ -26,7 +26,7 @@ export interface DifficultyConfig {
 }
 
 export const DIFFICULTY_CONFIG: Record<Difficulty, DifficultyConfig> = {
-  kolay: { prefill: 'cellPercent', prefillAmount: 0.4, hintLimit: -1, hintRule80: false, hintRegenMs: 0 },
+  kolay: { prefill: 'cellPercent', prefillAmount: 0.4, hintLimit: -1, hintRule80: true, hintRegenMs: 0 },
   normal: { prefill: 'wordTargeted', prefillAmount: 0.3, hintLimit: 10, hintRule80: true, hintRegenMs: 120_000 },
-  zor: { prefill: 'none', prefillAmount: 0, hintLimit: 5, hintRule80: false, hintRegenMs: 90_000 },
+  zor: { prefill: 'none', prefillAmount: 0, hintLimit: 5, hintRule80: true, hintRegenMs: 90_000 },
 }

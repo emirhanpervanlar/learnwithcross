@@ -48,7 +48,6 @@ export function PuzzleView({
   const gridRef = useRef<HTMLDivElement>(null)
 
   const [isMobile, setIsMobile] = useState(false)
-  const [barBottom, setBarBottom] = useState(0)
   const [desktopCellPx, setDesktopCellPx] = useState<number | null>(null)
 
   const set = getWordSetById(puzzle.setSlug)
@@ -117,20 +116,6 @@ export function PuzzleView({
     mq.addEventListener('change', apply)
     return () => mq.removeEventListener('change', apply)
   }, [])
-
-  // keep the bottom slide above the virtual keyboard
-  useEffect(() => {
-    if (!isMobile) return
-    const update = () => {
-      const vv = window.visualViewport
-      if (vv) setBarBottom(Math.max(0, Math.round(window.innerHeight - (vv.offsetTop + vv.height))))
-    }
-    update()
-    window.visualViewport?.addEventListener('resize', update)
-    return () => {
-      window.visualViewport?.removeEventListener('resize', update)
-    }
-  }, [isMobile])
 
   // continuously regenerate one hint every hintRegenMs while some are used up
   const regenHintRef = useRef<() => void>(() => {})
@@ -330,6 +315,71 @@ export function PuzzleView({
       onKeyDown={onKeyDown}
       className="rounded-lg outline-none"
     >
+      {/* mobile: active question pinned to the top of the page, above the grid */}
+      {isMobile && (
+        <div
+          className="anim-rise sticky top-0 z-30 -mx-3 mb-2 border-b border-slate-200 bg-white/95 px-3 py-2.5 shadow-sm backdrop-blur lg:hidden"
+          style={{ touchAction: 'pan-y' }}
+          onTouchStart={onSlideTouchStart}
+          onTouchEnd={onSlideTouchEnd}
+          role="region"
+          aria-label="Soru"
+        >
+          {activeClue ? (
+            <>
+              <div className="flex items-start justify-between gap-3">
+                <div className="min-w-0 flex-1">
+                  <span className="text-[10px] font-bold uppercase tracking-wider text-indigo-500">
+                    {DIR_SHORT[activeClue.dir]} · {activeClue.number}. soru
+                  </span>
+                  <p className="mt-1 text-base font-semibold leading-snug text-slate-900">
+                    {activeClue.text}
+                  </p>
+                </div>
+                <button
+                  type="button"
+                  onClick={solver.hint}
+                  disabled={!solver.hintAvailable}
+                  aria-label="İpucu göster"
+                  className="relative mt-0.5 inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-full border border-amber-200 bg-amber-50 text-sm text-amber-700 transition hover:bg-amber-100 active:bg-amber-200 disabled:cursor-not-allowed disabled:opacity-40"
+                >
+                  💡
+                  {hintConfig.hintLimit > 0 && (
+                    <span className="absolute -right-1 -top-1 rounded-full bg-amber-600 px-1 text-[9px] font-bold leading-3 text-white">
+                      {solver.hintsLeft}
+                    </span>
+                  )}
+                </button>
+              </div>
+              <div className="mt-2 flex items-center gap-2">
+                <button
+                  type="button"
+                  onClick={() => navigateSlide(-1)}
+                  aria-label="Önceki soru"
+                  className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full border border-slate-200 bg-white text-sm font-bold text-slate-600 transition hover:bg-slate-50 active:bg-slate-100"
+                >
+                  ‹
+                </button>
+                <span className="flex-1 text-center text-[10px] font-medium text-slate-400">
+                  {finished}/{totalWords} tamamlandı
+                </span>
+                <button
+                  type="button"
+                  onClick={() => navigateSlide(1)}
+                  aria-label="Sonraki soru"
+                  className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full border border-slate-200 bg-white text-sm font-bold text-slate-600 transition hover:bg-slate-50 active:bg-slate-100"
+                >
+                  ›
+                </button>
+              </div>
+            </>
+          ) : (
+            <p className="text-sm font-semibold text-slate-900">
+              Soruya geçmek için ızgarada bir hücreye dokun.
+            </p>
+          )}
+        </div>
+      )}
       {/* mobile: a single close button lives in the fullscreen shell; here only title */}
       <div className="flex items-center justify-center gap-3 py-1 lg:justify-between">
         <button
@@ -443,70 +493,6 @@ export function PuzzleView({
           ))}
         </div>
       </div>
-
-      {isMobile && (
-        <div
-          className="anim-rise fixed inset-x-0 z-50 border-t border-slate-200 bg-white/95 shadow-[0_-4px_12px_rgba(0,0,0,0.1)] backdrop-blur lg:hidden"
-          style={{ bottom: barBottom, touchAction: 'pan-y' }}
-          onTouchStart={onSlideTouchStart}
-          onTouchEnd={onSlideTouchEnd}
-          role="region"
-          aria-label="Soru"
-        >
-          <div className="mx-auto max-w-6xl px-3 py-2.5">
-            {activeClue && (
-              <>
-                <div className="flex items-start justify-between gap-3">
-                  <div className="min-w-0 flex-1">
-                    <span className="text-[10px] font-bold uppercase tracking-wider text-indigo-500">
-                      {DIR_SHORT[activeClue.dir]} · {activeClue.number}. soru
-                    </span>
-                    <p className="mt-1 text-base font-semibold leading-snug text-slate-900">
-                      {activeClue.text}
-                    </p>
-                  </div>
-                  <button
-                    type="button"
-                    onClick={solver.hint}
-                    disabled={!solver.hintAvailable}
-                    aria-label="İpucu göster"
-                    className="mt-0.5 inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-full border border-amber-200 bg-amber-50 text-sm font-semibold text-amber-700 transition hover:bg-amber-100 active:bg-amber-200 disabled:cursor-not-allowed disabled:opacity-40"
-                  >
-                    💡
-                    {hintConfig.hintLimit > 0 && (
-                      <span className="absolute ml-3.5 mt-3.5 rounded-full bg-amber-600 px-1 text-[9px] font-bold leading-3 text-white">
-                        {solver.hintsLeft}
-                      </span>
-                    )}
-                  </button>
-                </div>
-                <div className="mt-2 flex items-center gap-2">
-                  <button
-                    type="button"
-                    onClick={() => navigateSlide(-1)}
-                    aria-label="Önceki soru"
-                    className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full border border-slate-200 bg-white text-sm font-bold text-slate-600 transition hover:bg-slate-50 active:bg-slate-100"
-                  >
-                    ‹
-                  </button>
-                  <span className="flex-1 text-center text-[10px] font-medium text-slate-400">
-                    {finished}/{totalWords} tamamlandı
-                  </span>
-                  <button
-                    type="button"
-                    onClick={() => navigateSlide(1)}
-                    aria-label="Sonraki soru"
-                    className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full border border-slate-200 bg-white text-sm font-bold text-slate-600 transition hover:bg-slate-50 active:bg-slate-100"
-                  >
-                    ›
-                  </button>
-                </div>
-              </>
-            )}
-          </div>
-        </div>
-      )}
-      {isMobile && <div className="h-20 lg:hidden" aria-hidden="true" />}
     </div>
   )
 }

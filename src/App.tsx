@@ -20,7 +20,8 @@ import {
   registerExtraSet,
   TOPIC_SET_IDS,
 } from './data/sets'
-import { buildPuzzle } from './lib/crossword'
+import { buildPuzzle, normalizeTerm } from './lib/crossword'
+import { lookupTr } from './data/tr'
 import {
   learningKeyFor,
   levelFor,
@@ -30,7 +31,13 @@ import {
 } from './lib/learning'
 import { clearSavedSession, loadSavedSession, saveSavedSession } from './lib/storage'
 import type { SessionSnapshot } from './lib/storage'
-import { buildCefrPools, buildStageWords, stageConfig } from './lib/story'
+import {
+  buildCefrPools,
+  buildStageWords,
+  filterTranslatedPools,
+  stageConfig,
+  storyLanguageForStage,
+} from './lib/story'
 import { computePuzzleProgress } from './lib/progress'
 import { DIFFICULTY_CONFIG, DIFFICULTY_LABEL } from './lib/difficulty'
 import { LearningView } from './components/LearningView'
@@ -41,7 +48,7 @@ import { SetDetail } from './components/SetDetail'
 import { StoryView } from './components/StoryView'
 import { WelcomeView } from './components/WelcomeView'
 import { GameFinish, type FinishData } from './components/GameFinish'
-import type { Difficulty, LearningMap, PlacedWord, Puzzle, WordSet } from './types'
+import type { Difficulty, LearningMap, PlacedWord, Puzzle, Word, WordSet } from './types'
 
 type View = 'catalog' | 'set' | 'puzzle' | 'learning' | 'story' | 'profile' | 'finish'
 type ReturnView = 'set' | 'story' | 'learning' | 'catalog'
@@ -86,6 +93,8 @@ interface GenerateOptions {
   minLength: number
   difficulty: Difficulty
   questionLanguage?: 'tr' | 'en'
+  /** per-word language override (e.g. half-and-half story mixes) */
+  perWordLanguage?: (w: Word, index: number) => 'tr' | 'en'
   showSynonyms?: boolean
 }
 
@@ -234,6 +243,7 @@ export default function App() {
       seed: Date.now(),
       difficulty: options.difficulty,
       questionLanguage: options.questionLanguage,
+      perWordLanguage: options.perWordLanguage,
       showSynonyms: options.showSynonyms,
     })
     setSelectedSet(set)
@@ -433,7 +443,10 @@ export default function App() {
 
   const playStory = (stage: number) => {
     const cfg = stageConfig(stage)
-    const recipe = buildStageWords({ stage, pools: cefrPools, reviewWords: storyReviewWords })
+    const langMode = storyLanguageForStage(stage)
+    const pools = langMode !== 'en' ? filterTranslatedPools(cefrPools) : cefrPools
+    const reviewWords = langMode !== 'en' ? storyReviewWords.filter(w => lookupTr(normalizeTerm(w.term))) : storyReviewWords
+    const recipe = buildStageWords({ stage, pools, reviewWords })
     if (recipe.words.length < 4) return
     const set: WordSet = {
       id: `story-${stage}`,
@@ -454,6 +467,12 @@ export default function App() {
         wordCount: recipe.words.length,
         minLength: cfg.minLength,
         difficulty: recipe.difficulty,
+        questionLanguage: langMode === 'tr' ? 'tr' : 'en',
+        perWordLanguage:
+          langMode === 'mixed'
+            ? (_w: Word, index: number) => (index % 2 === 0 ? 'tr' : 'en')
+            : undefined,
+        showSynonyms: true,
       },
       'story',
     )
