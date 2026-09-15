@@ -81,6 +81,8 @@ export interface Puzzle {
   clues: PuzzleClue[]
   width: number
   height: number
+  questionLanguage?: 'tr' | 'en'
+  showSynonyms?: boolean
 }
 
 export interface LearningEntry {

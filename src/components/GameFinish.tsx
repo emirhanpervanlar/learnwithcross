@@ -30,6 +30,7 @@ interface Props {
   data: FinishData
   onNewPuzzle: () => void
   onWordList: () => void
+  onContinueStory?: () => void
 }
 
 const CONFETTI_COLORS = [
@@ -67,7 +68,7 @@ function useCountUp(target: number, ms: number, delay: number): number {
   return value
 }
 
-export function GameFinish({ data, onNewPuzzle, onWordList }: Props) {
+export function GameFinish({ data, onNewPuzzle, onWordList, onContinueStory }: Props) {
   const [started, setStarted] = useState(false)
   useEffect(() => {
     const id = window.setTimeout(() => setStarted(true), 80)
@@ -202,7 +203,7 @@ export function GameFinish({ data, onNewPuzzle, onWordList }: Props) {
                   <span className="w-1/3 min-w-0 truncate text-sm font-bold text-slate-800 sm:w-40">
                     {w.term}
                   </span>
-                  {w.leveledUp ? (
+                  {w.leveledUp && w.levelTo > w.levelFrom ? (
                     <span className="anim-pop shrink-0 rounded-full bg-green-100 px-2 py-0.5 text-xs font-bold text-green-700">
                       Sv{w.levelFrom} → Sv{w.levelTo} · Seviye Atladı
                     </span>
@@ -274,6 +275,14 @@ export function GameFinish({ data, onNewPuzzle, onWordList }: Props) {
           >
             Kelimelerim
           </button>
+          {onContinueStory && (
+            <button
+              onClick={onContinueStory}
+              className="flex-1 rounded-xl border border-emerald-300 bg-emerald-50 px-5 py-3 text-base font-bold text-emerald-700 transition hover:border-emerald-400 hover:bg-emerald-100 active:scale-[0.98]"
+            >
+              Hikâyeye Devam Et
+            </button>
+          )}
         </div>
       </div>
     </div>

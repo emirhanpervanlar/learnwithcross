@@ -6,7 +6,7 @@ import { WORD_GROUP_LABELS } from '../data/sets'
 interface Props {
   set: WordSet
   onBack: () => void
-  onGenerate: (options: { wordCount: number; minLength: number; difficulty: Difficulty }) => void
+  onGenerate: (options: { wordCount: number; minLength: number; difficulty: Difficulty; questionLanguage?: 'tr' | 'en'; showSynonyms?: boolean }) => void
 }
 
 export function SetDetail({ set, onBack, onGenerate }: Props) {
@@ -14,6 +14,8 @@ export function SetDetail({ set, onBack, onGenerate }: Props) {
   const [wordCount, setWordCount] = useState(12)
   const [minLength, setMinLength] = useState(3)
   const [difficulty, setDifficulty] = useState<Difficulty>('normal')
+  const [questionLanguage, setQuestionLanguage] = useState<'tr' | 'en'>('tr')
+  const [showSynonyms, setShowSynonyms] = useState(false)
 
   const filtered = useMemo(() => {
     const q = query.trim().toLowerCase()
@@ -106,8 +108,31 @@ export function SetDetail({ set, onBack, onGenerate }: Props) {
             </select>
           </label>
         </div>
+        <div className="mt-5 flex flex-wrap items-center gap-4">
+          <label className="flex items-center gap-2 text-sm text-slate-700">
+            <input
+              type="checkbox"
+              checked={questionLanguage === 'en'}
+              onChange={e => setQuestionLanguage(e.target.checked ? 'en' : 'tr')}
+              className="h-4 w-4 rounded border-slate-300 text-indigo-600 focus:ring-indigo-500"
+            />
+            İngilizce soru
+            <span className="ml-1 rounded-full bg-indigo-50 px-2 py-0.5 text-[11px] font-semibold text-indigo-700">
+              +XP
+            </span>
+          </label>
+          <label className="flex items-center gap-2 text-sm text-slate-700">
+            <input
+              type="checkbox"
+              checked={showSynonyms}
+              onChange={e => setShowSynonyms(e.target.checked)}
+              className="h-4 w-4 rounded border-slate-300 text-indigo-600 focus:ring-indigo-500"
+            />
+            Kolaylaştırıcı bilgi (tür, örnek)
+          </label>
+        </div>
         <button
-          onClick={() => onGenerate({ wordCount, minLength, difficulty })}
+          onClick={() => onGenerate({ wordCount, minLength, difficulty, questionLanguage, showSynonyms })}
           className="mt-5 w-full rounded-lg bg-indigo-600 px-4 py-2.5 text-sm font-semibold text-white transition hover:bg-indigo-700 sm:w-auto"
         >
           Bulmaca Üret

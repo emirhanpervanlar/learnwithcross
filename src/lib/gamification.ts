@@ -4,7 +4,26 @@ import type { Difficulty } from '../types'
 // XP & player level
 // ---------------------------------------------------------------------------
 
-/** XP awarded for finishing a puzzle, per difficulty. */
+const DIFFICULTY_XP_BASE: Record<Difficulty, number> = {
+  kolay: 5,
+  normal: 8,
+  zor: 12,
+}
+
+/** Computes total puzzle XP from difficulty, word count, hints used, and English clue bonus. */
+export function computePuzzleXp(
+  difficulty: Difficulty,
+  wordCount: number,
+  hintsUsed: number,
+  englishClue: boolean,
+): number {
+  const base = DIFFICULTY_XP_BASE[difficulty] * wordCount
+  const hintPenalty = Math.floor(hintsUsed * base * 0.04)
+  const englishBonus = englishClue ? Math.floor(base * 0.3) : 0
+  return Math.max(10, base - hintPenalty + englishBonus)
+}
+
+/** Legacy compat — used by old code paths that need a flat number. */
 export const XP_REWARD: Record<Difficulty, number> = {
   kolay: 40,
   normal: 60,

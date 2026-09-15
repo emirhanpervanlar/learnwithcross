@@ -61,7 +61,21 @@ const ORTHO_VEC: Record<Direction, readonly [number, number]> = {
   down: [0, 1], // left/right
 }
 
-const key = (row: number, col: number) => `${row},${col}`
+function key(row: number, col: number) {
+  return `${row},${col}`
+}
+
+/** Removes any self-reference to the term inside its own definition. */
+function stripSelfReference(term: string, def: string): string {
+  const escaped = term.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
+  const cleaned = def
+    .replace(new RegExp(`\\b${escaped}\\b`, 'gi'), '')
+    .replace(/[“”"']/g, '')
+    .replace(/\s{2,}/g, ' ')
+    .trim()
+  if (cleaned.length >= 8) return cleaned
+  return def
+}
 
 function shuffle<T>(arr: T[], rng: () => number): T[] {
   const out = [...arr]
@@ -329,7 +343,21 @@ function applyPrefill(puzzle: Puzzle, rng: () => number): void {
   if (cfg.prefill === 'cellPercent') {
     const cells = shuffle(puzzle.cells, rng)
     const target = Math.round(cells.length * cfg.prefillAmount)
-    for (let i = 0; i < Math.min(target, cells.length); i++) cells[i].given = true
+    const wordGiven = new Map<string, number>()
+    let marked = 0
+    for (const cell of cells) {
+      if (marked >= target) break
+      const across = cell.acrossId ? puzzle.words.find(w => w.id === cell.acrossId) : undefined
+      const down = cell.downId ? puzzle.words.find(w => w.id === cell.downId) : undefined
+      // never reveal more than 40% of any single word's letters
+      const underCap = (word?: PlacedWord) =>
+        word == null || (wordGiven.get(word.id) ?? 0) < Math.floor(word.length * 0.4)
+      if (!underCap(across) || !underCap(down)) continue
+      cell.given = true
+      marked++
+      if (across) wordGiven.set(across.id, (wordGiven.get(across.id) ?? 0) + 1)
+      if (down) wordGiven.set(down.id, (wordGiven.get(down.id) ?? 0) + 1)
+    }
     return
   }
 
@@ -361,7 +389,7 @@ export function generatePuzzle(
   options: GenerateOptions = {},
 ): Puzzle {
   const maxGridSize = options.maxGridSize ?? 60
-  const attempts = options.attempts ?? 6
+  const attempts = options.attempts ?? 12
   const difficulty = options.difficulty ?? 'normal'
   const rng = mulberry32(options.seed ?? Date.now())
 
@@ -369,7 +397,12 @@ export function generatePuzzle(
   for (let i = 0; i < input.length; i++) {
     const letters = normalizeTerm(input[i].term)
     if (letters.length < 2) continue
-    words.push({ id: `w${i}`, letters, display: input[i].term, clue: input[i].definition })
+    const normTerm = normalizeTerm(input[i].term)
+    const def = input[i].definition
+    const clue = normalizeTerm(def).includes(normTerm)
+      ? stripSelfReference(input[i].term, def)
+      : def
+    words.push({ id: `w${i}`, letters, display: input[i].term, clue })
   }
 
   if (words.length === 0) throw new Error('generatePuzzle: no placeable words')

@@ -107,8 +107,27 @@ export function usePuzzleSolver(
       toggleDir()
       return
     }
-    const preferred = active?.dir ?? 'across'
-    const dir: Direction = hasWordAt(row, col, preferred) ? preferred : deriveDirAt(row, col)
+    // prefer a word that starts exactly at this cell over one passing through
+    const cell = cellMap.get(`${row},${col}`)
+    const acrossStarts =
+      cell?.acrossId != null &&
+      wordsById.get(cell.acrossId)?.row === row &&
+      wordsById.get(cell.acrossId)?.col === col
+    const downStarts =
+      cell?.downId != null &&
+      wordsById.get(cell.downId)?.row === row &&
+      wordsById.get(cell.downId)?.col === col
+    let dir: Direction
+    if (acrossStarts && downStarts) {
+      dir = active?.dir === 'down' ? 'down' : 'across'
+    } else if (acrossStarts) {
+      dir = 'across'
+    } else if (downStarts) {
+      dir = 'down'
+    } else {
+      const preferred = active?.dir ?? 'across'
+      dir = hasWordAt(row, col, preferred) ? preferred : deriveDirAt(row, col)
+    }
     setActive({ row, col, dir })
   }
 
@@ -278,6 +297,12 @@ export function usePuzzleSolver(
     setHintsUsed(n => n + 1)
   }
 
+  /** Restores one previously used hint (time-based regen). */
+  const regenHint = () => {
+    if (hintLimit < 0 || hintsUsed <= 0) return
+    setHintsUsed(n => Math.max(0, n - 1))
+  }
+
   return {
     cellMap,
     entries,
@@ -298,5 +323,6 @@ export function usePuzzleSolver(
     toggleCheck,
     filledFraction,
     hint,
+    regenHint,
   }
 }

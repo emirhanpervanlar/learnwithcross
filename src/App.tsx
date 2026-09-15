@@ -3,14 +3,13 @@ import type { ReactNode } from 'react'
 import {
   ACHIEVEMENTS,
   addXp,
+  computePuzzleXp,
   computeUnlocked,
   createProfile as createProfileObject,
   loadProfile,
   playerLevelFromXp,
   saveProfile,
   touchPracticeDay,
-  wordLevelUpXp,
-  XP_REWARD,
   type Metrics,
   type Profile,
 } from './lib/gamification'
@@ -27,17 +26,13 @@ import {
   levelFor,
   loadLearning,
   MASTER_MAX_LEVEL,
-  recordCompleted,
-  recordCorrect,
-  recordWorked,
   saveLearning,
 } from './lib/learning'
 import { clearSavedSession, loadSavedSession, saveSavedSession } from './lib/storage'
 import type { SessionSnapshot } from './lib/storage'
 import { buildCefrPools, buildStageWords, stageConfig } from './lib/story'
 import { computePuzzleProgress } from './lib/progress'
-import { DIFFICULTY_LABEL } from './lib/difficulty'
-import type { SolverCallbacks } from './hooks/usePuzzleSolver'
+import { DIFFICULTY_CONFIG, DIFFICULTY_LABEL } from './lib/difficulty'
 import { LearningView } from './components/LearningView'
 import { ProfileView } from './components/ProfileView'
 import { PuzzleView } from './components/PuzzleView'
@@ -90,6 +85,8 @@ interface GenerateOptions {
   wordCount: number
   minLength: number
   difficulty: Difficulty
+  questionLanguage?: 'tr' | 'en'
+  showSynonyms?: boolean
 }
 
 export default function App() {
@@ -108,6 +105,7 @@ export default function App() {
   const [finishData, setFinishData] = useState<FinishData | null>(null)
   const [puzzleWordsStart, setPuzzleWordsStart] = useState<Map<string, number>>(new Map())
   const [toasts, setToasts] = useState<{ key: string; icon: string; title: string }[]>([])
+  const completedWordsRef = useRef<Map<string, { score: number; level: number }>>(new Map())
 
   useEffect(() => {
     const mq = window.matchMedia('(max-width: 1023px)')
@@ -116,6 +114,17 @@ export default function App() {
     mq.addEventListener('change', apply)
     return () => mq.removeEventListener('change', apply)
   }, [])
+
+  useEffect(() => {
+    if (view !== 'puzzle') return
+    const handler = (e: PopStateEvent) => {
+      e.preventDefault()
+      history.pushState(null, '', location.href)
+    }
+    history.pushState(null, '', location.href)
+    window.addEventListener('popstate', handler)
+    return () => window.removeEventListener('popstate', handler)
+  }, [view])
 
   const learningRef = useRef(learning)
   useEffect(() => {
@@ -224,6 +233,8 @@ export default function App() {
       minLength: options.minLength,
       seed: Date.now(),
       difficulty: options.difficulty,
+      questionLanguage: options.questionLanguage,
+      showSynonyms: options.showSynonyms,
     })
     setSelectedSet(set)
     setPuzzle(newPuzzle)
@@ -248,22 +259,64 @@ export default function App() {
     if (puzzle && !puzzleDone) saveSavedSession({ puzzle, snapshot: snap, savedAt: Date.now() })
   }
 
-  const handleFinished = () => {
+  const handleFinished = (snapshot: SessionSnapshot) => {
     clearSavedSession()
     setPuzzleDone(true)
     const p = profileRef.current
     if (!p) return
-    const hints = session?.hintsUsed ?? 0
+    const hints = snapshot.hintsUsed
+    const pz = puzzle!
+    const actualSet = getWordSetById(pz.setSlug)
+    const setName = actualSet?.name ?? pz.setSlug
+    const xpGained = computePuzzleXp(pz.difficulty, pz.words.length, hints, pz.questionLanguage === 'en')
+
+    // deferred scoring: apply fixed points per completed word at finish (no learning writes during play)
+    const entries = snapshot.entries
+    const isWordCompleted = (word: PlacedWord): boolean => {
+      for (let i = 0; i < word.length; i++) {
+        const row = word.row + (word.dir === 'down' ? i : 0)
+        const col = word.col + (word.dir === 'across' ? i : 0)
+        if (entries[`${row},${col}`] !== word.letters[i]) return false
+      }
+      return true
+    }
+    const updated: LearningMap = { ...learningRef.current }
+    const wordLevelUps = new Map<string, { oldLevel: number; newLevel: number }>()
+    let completedWordCount = 0
+    for (const word of pz.words) {
+      if (!isWordCompleted(word)) continue
+      completedWordCount++
+      const key = learningKeyFor(word, pz.setSlug)
+      const prev = updated[key]
+      const score = Math.max(3, word.letters.length)
+      const oldLevel = levelFor(prev?.score ?? 0).number
+      const newScore = (prev?.score ?? 0) + score
+      const newLevel = levelFor(newScore).number
+      updated[key] = {
+        wordId: key,
+        wordText: word.display,
+        setSlug: pz.setSlug,
+        setName,
+        score: newScore,
+        completedCount: (prev?.completedCount ?? 0) + 1,
+        lastWorkedAt: Date.now(),
+      }
+      wordLevelUps.set(key, { oldLevel, newLevel })
+      completedWordsRef.current.set(word.id, { score: newScore, level: newLevel })
+    }
+    commitLearning(updated)
+
     let next = touchPracticeDay(p)
-    next = addXp(next, XP_REWARD[puzzle!.difficulty])
-    if (puzzle!.difficulty === 'zor') next = { ...next, hardPuzzles: next.hardPuzzles + 1 }
+    next = addXp(next, xpGained)
+    if (pz.difficulty === 'zor') next = { ...next, hardPuzzles: next.hardPuzzles + 1 }
     if (hints === 0) next = { ...next, noHintPuzzles: next.noHintPuzzles + 1 }
     next = {
       ...next,
       hintsUsed: next.hintsUsed + hints,
       puzzlesCompleted: next.puzzlesCompleted + 1,
+      wordsCompleted: next.wordsCompleted + completedWordCount,
     }
-    const slug = puzzle!.setSlug
+    const slug = pz.setSlug
     next = {
       ...next,
       setCompletions: { ...next.setCompletions, [slug]: (next.setCompletions[slug] ?? 0) + 1 },
@@ -277,8 +330,6 @@ export default function App() {
     commitProfile(next)
 
     // --- build the celebration payload ---
-    const pz = puzzle!
-    const actualSet = getWordSetById(pz.setSlug)
     const prevLvl = playerLevelFromXp(p.xp)
     const afterLvl = playerLevelFromXp(next.xp)
     const beforeIds = new Set(computeUnlocked(computeMetricsFor(p, learningRef.current)))
@@ -286,16 +337,16 @@ export default function App() {
     const newAchievements = ACHIEVEMENTS.filter(a => !beforeIds.has(a.id) && afterIds.has(a.id))
     const startScores = puzzleWordsStart
     const wordEvents: FinishData['words'] = pz.words.map(w => {
-      const after = learningRef.current[learningKeyFor(w, pz.setSlug)]?.score ?? 0
+      const key = learningKeyFor(w, pz.setSlug)
+      const up = wordLevelUps.get(key)
+      const after = updated[key]?.score ?? 0
       const before = startScores.get(w.id) ?? 0
-      const from = levelFor(before).number
-      const to = levelFor(after).number
       return {
         id: w.id,
         term: w.display,
-        levelFrom: from,
-        levelTo: to,
-        leveledUp: to > from,
+        levelFrom: up?.oldLevel ?? levelFor(before).number,
+        levelTo: up?.newLevel ?? levelFor(after).number,
+        leveledUp: (up?.newLevel ?? levelFor(after).number) > (up?.oldLevel ?? levelFor(before).number),
         scoreTo: after,
       }
     })
@@ -308,7 +359,7 @@ export default function App() {
       playerTo: afterLvl.level,
       playerLeveledUp: afterLvl.level > prevLvl.level,
       achievements: newAchievements,
-      setName: actualSet?.name ?? pz.setSlug,
+      setName,
       difficultyLabel: DIFFICULTY_LABEL[pz.difficulty],
       wordCount: pz.words.length,
     })
@@ -349,40 +400,6 @@ export default function App() {
     if (p.setSlug.startsWith('story-')) return 'story'
     if (p.setSlug === 'review') return 'learning'
     return 'set'
-  }
-
-  // --- word learning tracking + XP ---
-  const applyWordChange = (
-    word: PlacedWord,
-    fn: (m: LearningMap, w: PlacedWord, setSlug: string, setName: string) => LearningMap,
-  ) => {
-    const set = puzzle ? getWordSetById(puzzle.setSlug) : undefined
-    const setSlug = puzzle?.setSlug ?? ''
-    const setName = set?.name ?? ''
-    commitLearning(fn(learningRef.current, word, setSlug, setName))
-  }
-
-  const onWordWorked = (word: PlacedWord) => applyWordChange(word, recordWorked)
-  const onNewCorrectLetter = (word: PlacedWord) => applyWordChange(word, recordCorrect)
-
-  const onWordComplete = (word: PlacedWord) => {
-    const set = puzzle ? getWordSetById(puzzle.setSlug) : undefined
-    const setSlug = puzzle?.setSlug ?? ''
-    const setName = set?.name ?? ''
-    const prevScore = learningRef.current[learningKeyFor(word, setSlug)]?.score ?? 0
-    commitLearning(recordCompleted(learningRef.current, word, setSlug, setName))
-    const prevLevel = levelFor(prevScore).number
-    const nextLevel = levelFor(prevScore + 10).number
-    if (nextLevel > prevLevel && profileRef.current) {
-      commitProfile(p => addXp(p, wordLevelUpXp(nextLevel)))
-    }
-    commitProfile(p => ({ ...p, wordsCompleted: p.wordsCompleted + 1 }))
-  }
-
-  const learningCallbacks: SolverCallbacks = {
-    onWordWorked,
-    onNewCorrectLetter,
-    onWordComplete,
   }
 
   // --- special puzzle flows ---
@@ -485,7 +502,6 @@ export default function App() {
         onSessionChange={handleSessionChange}
         onFinished={handleFinished}
         onBack={onPuzzleBack}
-        learning={learningCallbacks}
       />
     ) : null
 
@@ -495,15 +511,17 @@ export default function App() {
         <MobilePuzzleShell onClose={onPuzzleBack}>{puzzleViewEl}</MobilePuzzleShell>
       ) : (
         <>
-          <header className="border-b border-slate-200 bg-white">
-            <div className="mx-auto max-w-6xl px-4 py-5">
-              <h1 className="text-2xl font-bold tracking-tight text-slate-900">Kelime Çengeli</h1>
-              <p className="text-sm text-slate-500">
-                İngilizce kelime setlerinden otomatik çengel bulmaca üretici
-              </p>
-              {renderNav}
-            </div>
-          </header>
+          {!(view === 'finish' && isMobile) && (
+            <header className="border-b border-slate-200 bg-white">
+              <div className="mx-auto max-w-6xl px-4 py-5">
+                <h1 className="text-2xl font-bold tracking-tight text-slate-900">Kelime Çengeli</h1>
+                <p className="text-sm text-slate-500">
+                  İngilizce kelime setlerinden otomatik çengel bulmaca üretici
+                </p>
+                {renderNav}
+              </div>
+            </header>
+          )}
           <main className="mx-auto max-w-6xl px-4 py-8">
             {puzzleViewEl}
 
@@ -512,6 +530,14 @@ export default function App() {
                 data={finishData}
                 onNewPuzzle={openCatalog}
                 onWordList={openLearning}
+                onContinueStory={
+                  returnView === 'story'
+                    ? () => {
+                        setView('story')
+                        setFinishData(null)
+                      }
+                    : undefined
+                }
               />
             )}
 
@@ -629,8 +655,11 @@ function ResumeCard({ onResume, onDiscard }: { onResume: () => void; onDiscard: 
             Yarım kalan bulmaca: {set?.name ?? saved.puzzle.setSlug}
           </p>
           <p className="text-xs text-slate-500">
-            {DIFFICULTY_LABEL[saved.puzzle.difficulty]} · {progress.completedWords}/
-            {progress.totalWords} kelime tamamlandı · %{progress.percent}
+            {DIFFICULTY_LABEL[saved.puzzle.difficulty]} ·{' '}
+            {DIFFICULTY_CONFIG[saved.puzzle.difficulty].hintLimit < 0
+              ? 'sınırsız ipucu'
+              : `${DIFFICULTY_CONFIG[saved.puzzle.difficulty].hintLimit} ipucu`}{' '}
+            · {progress.completedWords}/{progress.totalWords} kelime tamamlandı · %{progress.percent}
           </p>
           <div className="mt-1.5 h-1.5 w-full max-w-xs overflow-hidden rounded-full bg-amber-100">
             <div

@@ -2,6 +2,8 @@ import type { Word } from '../../types'
 import { normalizeTerm } from './normalize'
 import { mulberry32 } from './random'
 
+export type QuestionLanguage = 'tr' | 'en'
+
 /**
  * Deterministically samples `count` words from a set, keeping only terms whose
  * letter length is >= minLength. Falls back to a pseudo-random `Date.now()`

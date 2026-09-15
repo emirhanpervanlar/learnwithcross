@@ -100,7 +100,12 @@ export function ProfileView({ profile, wordCount, unlocked, achievements, onBack
           Rozetler <span className="text-slate-400">({unlockedCount}/100)</span>
         </h3>
         <div className="mt-3 grid grid-cols-2 gap-2 sm:grid-cols-4 lg:grid-cols-5">
-          {achievements.map(a => {
+          {[...achievements].sort((a, b) => {
+            const aHas = unlocked.has(a.id)
+            const bHas = unlocked.has(b.id)
+            if (aHas !== bHas) return aHas ? -1 : 1
+            return 0
+          }).map(a => {
             const has = unlocked.has(a.id)
             return (
               <div

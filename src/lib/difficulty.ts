@@ -9,30 +9,24 @@ export const DIFFICULTY_LABEL: Record<Difficulty, string> = {
 }
 
 export const DIFFICULTY_DESCRIPTION: Record<Difficulty, string> = {
-  kolay: 'Bazı harfler önceden dolu, ipucu ile harf açılır.',
-  normal: 'Az sayıda kelimeye birer harf önceden verilir; sınırlı ipucu.',
-  zor: 'Önceden harf yok ve ipucu kullanılamaz.',
+  kolay: 'Bazı harfler önceden dolu, sınırsız ipucu.',
+  normal: 'Az sayıda kelimeye birer harf önceden verilir; 10 ipucu, 2 dk’da yenilenir.',
+  zor: 'Önceden harf yok; 5 ipucu, 90 sn’de yenilenir.',
 }
 
 export type PrefillMode = 'cellPercent' | 'wordTargeted' | 'none'
 
 export interface DifficultyConfig {
-  /**
-   * how the generator pre-fills letters:
-   *  - cellPercent: fills `prefillAmount` of all occupied cells (kolay)
-   *  - wordTargeted: gives 1 letter to `prefillAmount` of the words (normal)
-   *  - none: no pre-filled letters (zor)
-   */
   prefill: PrefillMode
   prefillAmount: number
-  /** total hint budget per puzzle; -1 = unlimited */
   hintLimit: number
-  /** reveal hints only while the active word is less than 80% filled */
   hintRule80: boolean
+  /** ms before a hint charge regenerates; 0 = no regen */
+  hintRegenMs: number
 }
 
 export const DIFFICULTY_CONFIG: Record<Difficulty, DifficultyConfig> = {
-  kolay: { prefill: 'cellPercent', prefillAmount: 0.4, hintLimit: -1, hintRule80: false },
-  normal: { prefill: 'wordTargeted', prefillAmount: 0.3, hintLimit: 3, hintRule80: true },
-  zor: { prefill: 'none', prefillAmount: 0, hintLimit: 0, hintRule80: false },
+  kolay: { prefill: 'cellPercent', prefillAmount: 0.4, hintLimit: -1, hintRule80: false, hintRegenMs: 0 },
+  normal: { prefill: 'wordTargeted', prefillAmount: 0.3, hintLimit: 10, hintRule80: true, hintRegenMs: 120_000 },
+  zor: { prefill: 'none', prefillAmount: 0, hintLimit: 5, hintRule80: false, hintRegenMs: 90_000 },
 }

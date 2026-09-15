@@ -15,9 +15,9 @@ interface Props {
   /** restored state when resuming a previous puzzle, or null */
   session: SessionSnapshot | null
   onSessionChange: (snapshot: SessionSnapshot) => void
-  onFinished: () => void
+  onFinished: (snapshot: SessionSnapshot) => void
   onBack: () => void
-  learning: SolverCallbacks
+  learning?: SolverCallbacks
 }
 
 const DIR_SHORT: Record<Direction, string> = {
@@ -46,7 +46,6 @@ export function PuzzleView({
   const containerRef = useRef<HTMLDivElement>(null)
   const inputRef = useRef<HTMLInputElement>(null)
   const gridRef = useRef<HTMLDivElement>(null)
-  const slideScrollerRef = useRef<HTMLDivElement>(null)
 
   const [isMobile, setIsMobile] = useState(false)
   const [barBottom, setBarBottom] = useState(0)
@@ -91,20 +90,24 @@ export function PuzzleView({
 
   const wasDone = useRef(false)
   useEffect(() => {
-    if (allDone) {
-      if (!wasDone.current) {
-        wasDone.current = true
-        onFinishedRef.current()
-      }
-      return
-    }
-    wasDone.current = false
-    onSessionChangeRef.current({
+    // Always persist the freshest state so deferred (finish-time) scoring sees
+    // the final letters even when the completion check happens on the same pass.
+    const snapshot: SessionSnapshot = {
       entries: solver.entries,
       active: solver.active,
       hintsUsed: solver.hintsUsed,
       checkMode: solver.checkMode,
-    })
+    }
+    if (allDone) {
+      onSessionChangeRef.current(snapshot)
+      if (!wasDone.current) {
+        wasDone.current = true
+        onFinishedRef.current(snapshot)
+      }
+      return
+    }
+    wasDone.current = false
+    onSessionChangeRef.current(snapshot)
   }, [solver.entries, solver.active, solver.hintsUsed, solver.checkMode, allDone])
 
   useEffect(() => {
@@ -115,49 +118,30 @@ export function PuzzleView({
     return () => mq.removeEventListener('change', apply)
   }, [])
 
-  // keep the bottom slide above the virtual keyboard and the active cell visible
+  // keep the bottom slide above the virtual keyboard
   useEffect(() => {
     if (!isMobile) return
-    const scrollActiveIntoView = () => {
-      const active = activeRef.current
-      if (!active) return
-      const vv = window.visualViewport
-      if (!vv) return
-      const keyboardOpen = vv.height < window.innerHeight - 80
-      if (!keyboardOpen) return
-      const el = gridRef.current?.querySelector<HTMLElement>(
-        `[data-cell="${active.row}-${active.col}"]`,
-      )
-      if (!el) return
-      const r = el.getBoundingClientRect()
-      if (r.top < 0 || r.bottom > vv.height) {
-        el.scrollIntoView({ block: 'center', behavior: 'smooth' })
-      }
-    }
     const update = () => {
       const vv = window.visualViewport
       if (vv) setBarBottom(Math.max(0, Math.round(window.innerHeight - (vv.offsetTop + vv.height))))
-      scrollActiveIntoView()
     }
     update()
-    window.addEventListener('scroll', update, { passive: true })
-    window.visualViewport?.addEventListener('scroll', update)
     window.visualViewport?.addEventListener('resize', update)
     return () => {
-      window.removeEventListener('scroll', update)
-      window.visualViewport?.removeEventListener('scroll', update)
       window.visualViewport?.removeEventListener('resize', update)
     }
   }, [isMobile])
 
-  // keep the active clue visible inside the swipeable slide
+  // continuously regenerate one hint every hintRegenMs while some are used up
+  const regenHintRef = useRef<() => void>(() => {})
+  regenHintRef.current = () => solver.regenHint()
   useEffect(() => {
-    if (!isMobile || !activeWordId) return
-    const chip = slideScrollerRef.current?.querySelector<HTMLElement>(
-      `[data-word="${activeWordId}"]`,
-    )
-    if (chip) chip.scrollIntoView({ inline: 'center', block: 'nearest', behavior: 'smooth' })
-  }, [activeWordId, isMobile])
+    const cfg = DIFFICULTY_CONFIG[puzzle.difficulty]
+    if (cfg.hintLimit <= 0 || cfg.hintRegenMs <= 0) return
+    if (solver.hintsUsed <= 0) return
+    const id = window.setInterval(() => regenHintRef.current(), cfg.hintRegenMs)
+    return () => window.clearInterval(id)
+  }, [puzzle.difficulty, solver.hintsUsed])
 
   const focusInput = () => inputRef.current?.focus()
 
@@ -328,6 +312,11 @@ export function PuzzleView({
 
   const hintConfig = DIFFICULTY_CONFIG[puzzle.difficulty]
 
+  const activeClue =
+    activeWordId !== undefined
+      ? orderedClues.find(c => c.wordId === activeWordId) ?? null
+      : null
+
   // mobile: viewport-based sizing; desktop: fills the flex row (capped huge)
   const cellSize =
     isMobile || desktopCellPx == null
@@ -458,66 +447,58 @@ export function PuzzleView({
       {isMobile && (
         <div
           className="anim-rise fixed inset-x-0 z-50 border-t border-slate-200 bg-white/95 shadow-[0_-4px_12px_rgba(0,0,0,0.1)] backdrop-blur lg:hidden"
-          style={{ bottom: barBottom }}
+          style={{ bottom: barBottom, touchAction: 'pan-y' }}
+          onTouchStart={onSlideTouchStart}
+          onTouchEnd={onSlideTouchEnd}
           role="region"
-          aria-label="Sorular"
+          aria-label="Soru"
         >
-          <div className="mx-auto flex max-w-6xl items-stretch gap-1 px-1 py-2">
-            <button
-              type="button"
-              onClick={() => navigateSlide(-1)}
-              aria-label="Önceki soru"
-              className="flex shrink-0 items-center justify-center rounded-lg px-2 text-slate-500 transition hover:bg-slate-100 hover:text-indigo-600 active:bg-slate-200"
-            >
-              ‹
-            </button>
-            <div
-              ref={slideScrollerRef}
-              className="nice-scroll flex gap-2 overflow-x-auto scroll-smooth px-1 py-1"
-              onTouchStart={onSlideTouchStart}
-              onTouchEnd={onSlideTouchEnd}
-              style={{ scrollbarWidth: 'none' }}
-            >
-              {orderedClues.map(clue => {
-                const isActive = clue.wordId === activeWordId
-                const isDone = solver.completed.has(clue.wordId)
-                return (
+          <div className="mx-auto max-w-6xl px-3 py-2.5">
+            {activeClue && (
+              <>
+                <div className="flex items-center justify-between gap-2">
+                  <span className="text-[10px] font-bold uppercase tracking-wider text-indigo-500">
+                    {DIR_SHORT[activeClue.dir]} · {activeClue.number}. soru
+                  </span>
+                  <span className="text-[10px] font-medium text-slate-400">
+                    {finished}/{totalWords} tamamlandı
+                  </span>
+                </div>
+                <p className="mt-1 text-base font-semibold leading-snug text-slate-900">
+                  {activeClue.text}
+                </p>
+                <div className="mt-2 flex items-center gap-2">
                   <button
-                    key={clue.id}
                     type="button"
-                    data-word={clue.wordId}
-                    onClick={() => {
-                      solver.gotoWord(clue.wordId)
-                      focusInput()
-                    }}
-                    className={`flex shrink-0 items-center gap-1.5 rounded-full border px-3 py-1.5 text-left text-xs font-medium transition ${
-                      isActive
-                        ? 'border-indigo-600 bg-indigo-600 text-white shadow'
-                        : isDone
-                          ? 'border-green-200 bg-green-50 text-green-700'
-                          : 'border-slate-200 bg-slate-50 text-slate-700 active:bg-slate-100'
-                    }`}
+                    onClick={() => navigateSlide(-1)}
+                    aria-label="Önceki soru"
+                    className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full border border-slate-200 bg-white text-sm font-bold text-slate-600 transition hover:bg-slate-50 active:bg-slate-100"
                   >
-                    <span className="font-bold">{clue.number}</span>
-                    <span
-                      className={`text-[10px] uppercase ${isActive ? 'text-indigo-100' : 'text-slate-400'}`}
-                    >
-                      {DIR_SHORT[clue.dir]}
-                    </span>
-                    <span className="max-w-44 truncate">{clue.text}</span>
-                    {isDone && <span className="text-green-600">✓</span>}
+                    ‹
                   </button>
-                )
-              })}
-            </div>
-            <button
-              type="button"
-              onClick={() => navigateSlide(1)}
-              aria-label="Sonraki soru"
-              className="flex shrink-0 items-center justify-center rounded-lg px-2 text-slate-500 transition hover:bg-slate-100 hover:text-indigo-600 active:bg-slate-200"
-            >
-              ›
-            </button>
+                  <button
+                    type="button"
+                    onClick={solver.hint}
+                    disabled={!solver.hintAvailable}
+                    className="inline-flex shrink-0 items-center gap-1 rounded-full border border-amber-200 bg-amber-50 px-3 py-1.5 text-xs font-semibold text-amber-700 transition hover:bg-amber-100 active:bg-amber-200 disabled:cursor-not-allowed disabled:opacity-40"
+                  >
+                    💡{hintConfig.hintLimit === -1
+                      ? ' İpucu'
+                      : hintConfig.hintLimit === 0
+                        ? ' İpucu yok'
+                        : ` İpucu (${solver.hintsLeft})`}
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => navigateSlide(1)}
+                    aria-label="Sonraki soru"
+                    className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full border border-slate-200 bg-white text-sm font-bold text-slate-600 transition hover:bg-slate-50 active:bg-slate-100"
+                  >
+                    ›
+                  </button>
+                </div>
+              </>
+            )}
           </div>
         </div>
       )}

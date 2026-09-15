@@ -215,4 +215,30 @@ describe('difficulty prefill', () => {
     const b = generatePuzzle('test', input, { seed: 33, attempts: 10, difficulty: 'kolay' })
     expect(a.cells.map(c => c.given)).toEqual(b.cells.map(c => c.given))
   })
+
+  it('never reveals more than 40% of any single word in kolay mode', () => {
+    const puzzle = generatePuzzle('test', input, { seed: 7, attempts: 12, difficulty: 'kolay' })
+    const cellMap = new Map(puzzle.cells.map(c => [`${c.row},${c.col}`, c] as const))
+    for (const w of puzzle.words) {
+      let given = 0
+      for (let i = 0; i < w.length; i++) {
+        const r = w.row + (w.dir === 'down' ? i : 0)
+        const c = w.col + (w.dir === 'across' ? i : 0)
+        if (cellMap.get(`${r},${c}`)?.given) given++
+      }
+      expect(given).toBeLessThanOrEqual(Math.floor(w.length * 0.4))
+    }
+  })
+})
+
+describe('definition cleanup', () => {
+  it('strips the term from a clue that contains it verbatim', () => {
+    const puzzle = generatePuzzle('test', [{ term: 'mineral', definition: 'a mineral is a natural substance in rock form' }], { seed: 5 })
+    expect(puzzle.clues[0]!.text).not.toMatch(/mineral/i)
+  })
+
+  it('keeps unrelated definitions unchanged', () => {
+    const puzzle = generatePuzzle('test', [{ term: 'mineral', definition: 'a natural substance obtained from rock' }], { seed: 5 })
+    expect(puzzle.clues[0]!.text).toBe('a natural substance obtained from rock')
+  })
 })

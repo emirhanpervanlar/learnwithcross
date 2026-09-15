@@ -95,15 +95,15 @@ interface LevelThreshold {
 
 const LEVELS: LevelThreshold[] = [
   { min: 0, name: 'Başlangıç' },
-  { min: 5, name: 'Gelişiyor' },
-  { min: 15, name: 'İyi' },
-  { min: 30, name: 'Çok İyi' },
-  { min: 50, name: 'Usta' },
-  { min: 70, name: 'Uzman' },
-  { min: 95, name: 'Kurmay' },
-  { min: 125, name: 'Şampiyon' },
-  { min: 160, name: 'Efsane' },
-  { min: 200, name: 'Titanyum' },
+  { min: 15, name: 'Gelişiyor' },
+  { min: 40, name: 'İyi' },
+  { min: 80, name: 'Çok İyi' },
+  { min: 140, name: 'Usta' },
+  { min: 220, name: 'Uzman' },
+  { min: 330, name: 'Kurmay' },
+  { min: 480, name: 'Şampiyon' },
+  { min: 680, name: 'Efsane' },
+  { min: 1000, name: 'Titanyum' },
 ]
 
 /** Highest mastery level number a word can reach. */

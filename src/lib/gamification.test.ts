@@ -3,6 +3,7 @@ import {
   ACHIEVEMENTS,
   XP_REWARD,
   addXp,
+  computePuzzleXp,
   computeUnlocked,
   createProfile,
   dayKey,
@@ -32,6 +33,30 @@ const baseMetrics: Metrics = {
 }
 
 const metric = (patch: Partial<Metrics>): Metrics => ({ ...baseMetrics, ...patch })
+
+describe('computePuzzleXp', () => {
+  it('scales with difficulty and word count', () => {
+    expect(computePuzzleXp('kolay', 12, 0, false)).toBe(60)
+    expect(computePuzzleXp('normal', 12, 0, false)).toBe(96)
+    expect(computePuzzleXp('zor', 12, 0, false)).toBe(144)
+  })
+
+  it('penalizes every hint used', () => {
+    const noHints = computePuzzleXp('normal', 12, 0, false)
+    const someHints = computePuzzleXp('normal', 12, 4, false)
+    expect(someHints).toBeLessThan(noHints)
+  })
+
+  it('bonuses English clue mode', () => {
+    const en = computePuzzleXp('kolay', 12, 0, true)
+    const tr = computePuzzleXp('kolay', 12, 0, false)
+    expect(en).toBeGreaterThan(tr)
+  })
+
+  it('never drops below the 10 XP floor', () => {
+    expect(computePuzzleXp('kolay', 2, 6, false)).toBeGreaterThanOrEqual(10)
+  })
+})
 
 describe('player XP / level', () => {
   it('awards fixed XP per difficulty', () => {

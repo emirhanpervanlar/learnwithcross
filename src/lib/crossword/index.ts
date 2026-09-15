@@ -12,14 +12,28 @@ export interface BuildPuzzleOptions {
   minLength: number
   seed?: number
   difficulty?: Difficulty
+  questionLanguage?: 'tr' | 'en'
+  showSynonyms?: boolean
 }
 
 /** Samples words from a set and generates a puzzle in one step. */
 export function buildPuzzle(set: WordSet, options: BuildPuzzleOptions): Puzzle {
   const sampled = sampleWords(set.words, options.wordCount, options.minLength, options.seed)
-  return generatePuzzle(
+  const puzzle = generatePuzzle(
     set.id,
-    sampled.map(w => ({ term: w.term, definition: w.definition })),
+    sampled.map(w => {
+      let clue = w.definition
+      if (options.showSynonyms) {
+        const extra: string[] = []
+        if (w.pos) extra.push(`(${w.pos})`)
+        if (w.example) extra.push(`örnek: ${w.example}`)
+        if (extra.length > 0) clue = `${clue} · ${extra.join(' ')}`
+      }
+      return { term: w.term, definition: clue }
+    }),
     { seed: options.seed, difficulty: options.difficulty },
   )
+  puzzle.questionLanguage = options.questionLanguage ?? 'tr'
+  puzzle.showSynonyms = options.showSynonyms ?? false
+  return puzzle
 }
