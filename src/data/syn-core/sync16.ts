@@ -279,3 +279,4 @@ export const SYN: Record<string, string> = {
   'getbackwith': 'reconcile, reunite, restart',
   'getbehind': 'support, endorse, promote',
   'getbehindwith': 'lag, owe, fall behind',
+}
