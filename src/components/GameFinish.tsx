@@ -10,6 +10,8 @@ export interface FinishWord {
   levelTo: number
   leveledUp: boolean
   scoreTo: number
+  /** XP gained for this word during the puzzle */
+  xp: number
 }
 
 export interface FinishData {
@@ -28,9 +30,9 @@ export interface FinishData {
 
 interface Props {
   data: FinishData
-  onNewPuzzle: () => void
-  onWordList: () => void
   onContinueStory?: () => void
+  onHome: () => void
+  onWordList: () => void
 }
 
 const CONFETTI_COLORS = [
@@ -68,7 +70,8 @@ function useCountUp(target: number, ms: number, delay: number): number {
   return value
 }
 
-export function GameFinish({ data, onNewPuzzle, onWordList, onContinueStory }: Props) {
+export function GameFinish({ data, onContinueStory, onHome, onWordList }: Props) {
+  const isStory = onContinueStory != null
   const [started, setStarted] = useState(false)
   useEffect(() => {
     const id = window.setTimeout(() => setStarted(true), 80)
@@ -153,16 +156,22 @@ export function GameFinish({ data, onNewPuzzle, onWordList, onContinueStory }: P
               </p>
             </div>
             <div className="flex items-center gap-2">
-              <span className="rounded-full bg-slate-100 px-3 py-1 text-sm font-semibold text-slate-600">
-                Seviye {data.playerFrom}
-              </span>
-              <span className="text-slate-400">→</span>
-              <span className="rounded-full bg-indigo-600 px-3 py-1 text-sm font-semibold text-white">
-                Seviye {data.playerTo}
-              </span>
-              {data.playerLeveledUp && (
-                <span className="anim-bounce-soft rounded-full bg-amber-400 px-3 py-1 text-sm font-bold text-amber-900">
-                  Level Up! 🚀
+              {data.playerLeveledUp ? (
+                <>
+                  <span className="rounded-full bg-slate-100 px-3 py-1 text-sm font-semibold text-slate-600">
+                    Seviye {data.playerFrom}
+                  </span>
+                  <span className="text-slate-400">→</span>
+                  <span className="rounded-full bg-indigo-600 px-3 py-1 text-sm font-semibold text-white">
+                    Seviye {data.playerTo}
+                  </span>
+                  <span className="anim-bounce-soft rounded-full bg-amber-400 px-3 py-1 text-sm font-bold text-amber-900">
+                    Level Up! 🚀
+                  </span>
+                </>
+              ) : (
+                <span className="rounded-full bg-indigo-600 px-3 py-1 text-sm font-semibold text-white">
+                  Seviye {data.playerTo}
                 </span>
               )}
             </div>
@@ -210,6 +219,11 @@ export function GameFinish({ data, onNewPuzzle, onWordList, onContinueStory }: P
                   ) : (
                     <span className="shrink-0 rounded-full bg-slate-200 px-2 py-0.5 text-xs font-semibold text-slate-600">
                       Sv{w.levelTo} · {lvl.name}
+                    </span>
+                  )}
+                  {w.xp > 0 && (
+                    <span className="shrink-0 rounded-full bg-indigo-50 px-2 py-0.5 text-xs font-bold text-indigo-600">
+                      +{w.xp} XP
                     </span>
                   )}
                   <span className="ml-auto hidden sm:block min-w-0 flex-1">
@@ -264,10 +278,14 @@ export function GameFinish({ data, onNewPuzzle, onWordList, onContinueStory }: P
           style={{ animationDelay: `${0.9 + data.words.length * 0.06}s` }}
         >
           <button
-            onClick={onNewPuzzle}
-            className="flex-1 rounded-xl bg-indigo-600 px-5 py-3 text-base font-bold text-white shadow-lg shadow-indigo-200 transition hover:bg-indigo-700 active:scale-[0.98]"
+            onClick={isStory ? onContinueStory : onHome}
+            className={`flex-1 rounded-xl px-5 py-3 text-base font-bold text-white shadow-lg transition hover:brightness-110 active:scale-[0.98] ${
+              isStory
+                ? 'bg-emerald-600 shadow-emerald-200'
+                : 'bg-indigo-600 shadow-indigo-200 hover:bg-indigo-700'
+            }`}
           >
-            Yeni Bulmaca Çöz
+            {isStory ? 'Hikâyeye Devam Et' : 'Yeni Bulmaca Çöz'}
           </button>
           <button
             onClick={onWordList}
@@ -275,14 +293,12 @@ export function GameFinish({ data, onNewPuzzle, onWordList, onContinueStory }: P
           >
             Kelimelerim
           </button>
-          {onContinueStory && (
-            <button
-              onClick={onContinueStory}
-              className="flex-1 rounded-xl border border-emerald-300 bg-emerald-50 px-5 py-3 text-base font-bold text-emerald-700 transition hover:border-emerald-400 hover:bg-emerald-100 active:scale-[0.98]"
-            >
-              Hikâyeye Devam Et
-            </button>
-          )}
+          <button
+            onClick={onHome}
+            className="flex-1 rounded-xl border border-slate-300 bg-white px-5 py-3 text-base font-bold text-slate-700 transition hover:border-indigo-400 hover:text-indigo-600 active:scale-[0.98]"
+          >
+            Anasayfa
+          </button>
         </div>
       </div>
     </div>

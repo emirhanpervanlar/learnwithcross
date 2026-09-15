@@ -14,7 +14,7 @@ export function SetDetail({ set, onBack, onGenerate }: Props) {
   const [wordCount, setWordCount] = useState(12)
   const [minLength, setMinLength] = useState(3)
   const [difficulty, setDifficulty] = useState<Difficulty>('normal')
-  const [questionLanguage, setQuestionLanguage] = useState<'tr' | 'en'>('tr')
+  const [questionLanguage, setQuestionLanguage] = useState<'tr' | 'en'>('en')
   const [showSynonyms, setShowSynonyms] = useState(false)
 
   const filtered = useMemo(() => {
@@ -108,19 +108,42 @@ export function SetDetail({ set, onBack, onGenerate }: Props) {
             </select>
           </label>
         </div>
+        <div className="mt-4">
+          <span className="block text-sm font-medium text-slate-700">Soru dili</span>
+          <div className="mt-2 grid grid-cols-2 gap-2 sm:max-w-xs">
+            <button
+              type="button"
+              onClick={() => setQuestionLanguage('tr')}
+              className={`rounded-lg border px-3 py-2 text-sm font-semibold transition ${
+                questionLanguage === 'tr'
+                  ? 'border-indigo-500 bg-indigo-50 text-indigo-700 ring-1 ring-indigo-200'
+                  : 'border-slate-200 bg-white text-slate-600 hover:border-indigo-300'
+              }`}
+            >
+              🇹🇷 Türkçe
+            </button>
+            <button
+              type="button"
+              onClick={() => setQuestionLanguage('en')}
+              className={`rounded-lg border px-3 py-2 text-sm font-semibold transition ${
+                questionLanguage === 'en'
+                  ? 'border-indigo-500 bg-indigo-50 text-indigo-700 ring-1 ring-indigo-200'
+                  : 'border-slate-200 bg-white text-slate-600 hover:border-indigo-300'
+              }`}
+            >
+              🇬🇧 İngilizce
+              <span className="ml-1 rounded-full bg-indigo-50 px-1.5 py-0.5 text-[10px] font-bold text-indigo-600">
+                +XP
+              </span>
+            </button>
+          </div>
+          <p className="mt-1 text-xs text-slate-400">
+            {questionLanguage === 'tr'
+              ? 'Sorular Türkçe açıklamalarla sorulur (kelimeler İngilizce kalır).'
+              : 'Sorular İngilizce açıklamalarla sorulur; %30 daha fazla XP kazandırır.'}
+          </p>
+        </div>
         <div className="mt-5 flex flex-wrap items-center gap-4">
-          <label className="flex items-center gap-2 text-sm text-slate-700">
-            <input
-              type="checkbox"
-              checked={questionLanguage === 'en'}
-              onChange={e => setQuestionLanguage(e.target.checked ? 'en' : 'tr')}
-              className="h-4 w-4 rounded border-slate-300 text-indigo-600 focus:ring-indigo-500"
-            />
-            İngilizce soru
-            <span className="ml-1 rounded-full bg-indigo-50 px-2 py-0.5 text-[11px] font-semibold text-indigo-700">
-              +XP
-            </span>
-          </label>
           <label className="flex items-center gap-2 text-sm text-slate-700">
             <input
               type="checkbox"

@@ -151,8 +151,8 @@ export function PuzzleView({
     const idx = list.findIndex(c => c.wordId === activeWordId)
     const target = list[(((idx < 0 ? 0 : idx) + delta) % list.length + list.length) % list.length]
     if (!target) return
+    // navigating questions must NOT open the keyboard; only tapping a grid cell does
     solver.gotoWord(target.wordId)
-    focusInput()
   }
 
   const touchX = useRef<number | null>(null)
@@ -456,17 +456,30 @@ export function PuzzleView({
           <div className="mx-auto max-w-6xl px-3 py-2.5">
             {activeClue && (
               <>
-                <div className="flex items-center justify-between gap-2">
-                  <span className="text-[10px] font-bold uppercase tracking-wider text-indigo-500">
-                    {DIR_SHORT[activeClue.dir]} · {activeClue.number}. soru
-                  </span>
-                  <span className="text-[10px] font-medium text-slate-400">
-                    {finished}/{totalWords} tamamlandı
-                  </span>
+                <div className="flex items-start justify-between gap-3">
+                  <div className="min-w-0 flex-1">
+                    <span className="text-[10px] font-bold uppercase tracking-wider text-indigo-500">
+                      {DIR_SHORT[activeClue.dir]} · {activeClue.number}. soru
+                    </span>
+                    <p className="mt-1 text-base font-semibold leading-snug text-slate-900">
+                      {activeClue.text}
+                    </p>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={solver.hint}
+                    disabled={!solver.hintAvailable}
+                    aria-label="İpucu göster"
+                    className="mt-0.5 inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-full border border-amber-200 bg-amber-50 text-sm font-semibold text-amber-700 transition hover:bg-amber-100 active:bg-amber-200 disabled:cursor-not-allowed disabled:opacity-40"
+                  >
+                    💡
+                    {hintConfig.hintLimit > 0 && (
+                      <span className="absolute ml-3.5 mt-3.5 rounded-full bg-amber-600 px-1 text-[9px] font-bold leading-3 text-white">
+                        {solver.hintsLeft}
+                      </span>
+                    )}
+                  </button>
                 </div>
-                <p className="mt-1 text-base font-semibold leading-snug text-slate-900">
-                  {activeClue.text}
-                </p>
                 <div className="mt-2 flex items-center gap-2">
                   <button
                     type="button"
@@ -476,18 +489,9 @@ export function PuzzleView({
                   >
                     ‹
                   </button>
-                  <button
-                    type="button"
-                    onClick={solver.hint}
-                    disabled={!solver.hintAvailable}
-                    className="inline-flex shrink-0 items-center gap-1 rounded-full border border-amber-200 bg-amber-50 px-3 py-1.5 text-xs font-semibold text-amber-700 transition hover:bg-amber-100 active:bg-amber-200 disabled:cursor-not-allowed disabled:opacity-40"
-                  >
-                    💡{hintConfig.hintLimit === -1
-                      ? ' İpucu'
-                      : hintConfig.hintLimit === 0
-                        ? ' İpucu yok'
-                        : ` İpucu (${solver.hintsLeft})`}
-                  </button>
+                  <span className="flex-1 text-center text-[10px] font-medium text-slate-400">
+                    {finished}/{totalWords} tamamlandı
+                  </span>
                   <button
                     type="button"
                     onClick={() => navigateSlide(1)}

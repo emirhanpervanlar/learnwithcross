@@ -1,6 +1,8 @@
 import type { Difficulty, Puzzle, WordSet } from '../../types'
 import { generatePuzzle } from './generator'
+import { normalizeTerm } from './normalize'
 import { sampleWords } from './sample'
+import { lookupTr } from '../../data/tr'
 
 export { generatePuzzle } from './generator'
 export { latinize, normalizeTerm } from './normalize'
@@ -22,7 +24,10 @@ export function buildPuzzle(set: WordSet, options: BuildPuzzleOptions): Puzzle {
   const puzzle = generatePuzzle(
     set.id,
     sampled.map(w => {
-      let clue = w.definition
+      let clue =
+        options.questionLanguage === 'tr'
+          ? (lookupTr(normalizeTerm(w.term)) ?? w.definition)
+          : w.definition
       if (options.showSynonyms) {
         const extra: string[] = []
         if (w.pos) extra.push(`(${w.pos})`)
@@ -33,7 +38,7 @@ export function buildPuzzle(set: WordSet, options: BuildPuzzleOptions): Puzzle {
     }),
     { seed: options.seed, difficulty: options.difficulty },
   )
-  puzzle.questionLanguage = options.questionLanguage ?? 'tr'
+  puzzle.questionLanguage = options.questionLanguage ?? 'en'
   puzzle.showSynonyms = options.showSynonyms ?? false
   return puzzle
 }

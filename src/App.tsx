@@ -282,6 +282,8 @@ export default function App() {
     }
     const updated: LearningMap = { ...learningRef.current }
     const wordLevelUps = new Map<string, { oldLevel: number; newLevel: number }>()
+    const wordXp = new Map<string, number>() // per-word mastery XP for completed words
+    let wordXpTotal = 0
     let completedWordCount = 0
     for (const word of pz.words) {
       if (!isWordCompleted(word)) continue
@@ -302,12 +304,14 @@ export default function App() {
         lastWorkedAt: Date.now(),
       }
       wordLevelUps.set(key, { oldLevel, newLevel })
+      wordXp.set(key, score)
+      wordXpTotal += score
       completedWordsRef.current.set(word.id, { score: newScore, level: newLevel })
     }
     commitLearning(updated)
 
     let next = touchPracticeDay(p)
-    next = addXp(next, xpGained)
+    next = addXp(next, xpGained + wordXpTotal)
     if (pz.difficulty === 'zor') next = { ...next, hardPuzzles: next.hardPuzzles + 1 }
     if (hints === 0) next = { ...next, noHintPuzzles: next.noHintPuzzles + 1 }
     next = {
@@ -348,6 +352,7 @@ export default function App() {
         levelTo: up?.newLevel ?? levelFor(after).number,
         leveledUp: (up?.newLevel ?? levelFor(after).number) > (up?.oldLevel ?? levelFor(before).number),
         scoreTo: after,
+        xp: wordXp.get(key) ?? 0,
       }
     })
     setFinishData({
@@ -528,7 +533,7 @@ export default function App() {
             {view === 'finish' && finishData && (
               <GameFinish
                 data={finishData}
-                onNewPuzzle={openCatalog}
+                onHome={openCatalog}
                 onWordList={openLearning}
                 onContinueStory={
                   returnView === 'story'

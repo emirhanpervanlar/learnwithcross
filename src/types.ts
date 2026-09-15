@@ -7,6 +7,8 @@ export interface Word {
   term: string
   /** the clue / definition shown in puzzles */
   definition: string
+  /** optional Turkish gloss of the definition (used when puzzle language is "tr") */
+  tr?: string
   /** optional usage example */
   example?: string
   /** part of speech, e.g. "noun" | "verb" | "adjective" */
